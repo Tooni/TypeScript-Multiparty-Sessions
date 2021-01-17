@@ -21,7 +21,7 @@ class TestProtocol:
         identifier = data['identifier']
         server = data['server']
         clients = data['clients']
-        
+
         return cls(identifier, server, clients)
 
 
@@ -36,7 +36,7 @@ class TestFile:
         filename = data['filename']
         protocols = [TestProtocol.from_dict(protocol)
                      for protocol in data['protocols']]
-        
+
         return cls(filename, protocols)
 
 
@@ -45,4 +45,3 @@ def parse_config() -> typing.List[TestFile]:
     f = Path(_CONFIG_FILE)
     test_config = json.loads(f.read_text())
     return [TestFile.from_dict(test) for test in test_config['tests']]
-     

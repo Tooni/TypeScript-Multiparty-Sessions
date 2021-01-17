@@ -7,6 +7,7 @@ import typing
 _SCRIBBLE_EXECUTABLE = 'scribblec.sh'
 _SCRIBBLE_ENV_VAR = 'SCRIBBLE'
 
+
 def get_graph(filename: str, protocol: str, role: str) -> typing.Tuple[int, str]:
     """Get dot representation of EFSM from Scribble-Java.
     Return exit code and command line output."""
@@ -17,7 +18,7 @@ def get_graph(filename: str, protocol: str, role: str) -> typing.Tuple[int, str]
     completion = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = completion.returncode
     output = completion.stderr if exit_code != 0 else completion.stdout
-
+    print(output.decode('utf-8').strip())
     return exit_code, output.decode('utf-8').strip()
 
 

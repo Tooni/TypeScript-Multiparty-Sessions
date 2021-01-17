@@ -8,6 +8,7 @@ from codegen.cli import main as run_codegen
 from codegen.tests.system.utils import TEST_DIR, TestFile
 from codegen.utils import logger
 
+
 def _build_test_case(*,
                      filename: str,
                      protocol: str,
@@ -33,7 +34,7 @@ def _build_test_case(*,
             flags = [os.path.join(TEST_DIR, 'examples', filename), protocol, role, target]
             if target == 'browser':
                 flags += ['-s', server]
-            
+
             phase = 'Run codegen'
             exit_code = run_codegen(flags)
             if exit_code != 0:

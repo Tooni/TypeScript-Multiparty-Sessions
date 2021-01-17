@@ -4,6 +4,7 @@ import typing
 from codegen.automata.efsm import EFSM
 from codegen.utils.type_declaration_parser import DataType
 
+
 @dataclass
 class Endpoint:
     protocol: str

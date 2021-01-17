@@ -3,7 +3,8 @@ import typing
 
 from codegen.automata import Endpoint, parser as automata_parser
 from codegen.generator import CodeGenerator
-from codegen.utils import logger, role_parser, scribble, type_declaration_parser
+from codegen.utils import logger, role_parser, scribble, nuscr, type_declaration_parser
+
 
 def parse_arguments(args: typing.List[str]) -> typing.Dict:
     """Prepare command line argument parser and return the parsed arguments
@@ -61,7 +62,7 @@ def main(args: typing.List[str]) -> int:
         phase = f'Parse FSM from {scribble_filename}'
         with type_declaration_parser.parse(scribble_filename) as custom_types:
 
-            exit_code, output = scribble.get_graph(scribble_filename, protocol, role)
+            exit_code, output = nuscr.get_graph(scribble_filename, protocol, role)
             if exit_code != 0:
                 logger.FAIL(phase)
                 logger.ERROR(output)
@@ -71,7 +72,7 @@ def main(args: typing.List[str]) -> int:
     except (OSError, ValueError) as error:
         logger.ERROR(error)
         return 1
-    
+
     phase = f'Parse endpoint IR from Scribble output'
     try:
         efsm = automata_parser.from_data(output)

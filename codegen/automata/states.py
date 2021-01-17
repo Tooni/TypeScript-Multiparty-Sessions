@@ -1,6 +1,7 @@
 from abc import ABC
 import typing
 
+
 class State(ABC):
 
     def __init__(self, state_id: str):
@@ -54,7 +55,7 @@ class NonTerminalState(State, ABC):
         """Add the specified 'action' to this state instance."""
 
         if action.label in self._actions:
-            raise ValueError(f'Duplicate action: label "{action.label}" ' 
+            raise ValueError(f'Duplicate action: label "{action.label}" '
                              f'already exists in S{self.id}')
 
         self._actions[action.label] = action
@@ -72,7 +73,7 @@ class NonTerminalState(State, ABC):
 
         if not isinstance(other, self.__class__):
             return False
-        
+
         my_actions = list(self._actions.items())
         other_actions = list(other._actions.items())
 

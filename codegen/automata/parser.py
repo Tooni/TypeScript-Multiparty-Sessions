@@ -3,6 +3,7 @@ import pydot
 
 from codegen.automata.efsm import EFSM
 
+
 def from_file(path: str) -> EFSM:
     """Parse EFSM reprsentation from the file in specified 'path'."""
 
@@ -29,16 +30,17 @@ def _parse_graph(graph: pydot.Graph) -> EFSM:
     from .actions import Action
     from .efsm import EfsmBuilder
 
-    nodes = [_extract(node.get_name()) for node in graph.get_nodes()]
+    nodes = [node.get_name() for node in graph.get_nodes()]
 
     efsm = EfsmBuilder(nodes)
     for edge in graph.get_edge_list():
 
-        src = _extract(edge.get_source())
-        dst = _extract(edge.get_destination())
+        src = edge.get_source()
+        dst = edge.get_destination()
+        # 'label' has speech marks around it.
         label = _extract(edge.get_label())
 
         action = Action.parse(label, src, dst)
         action.add_to_efsm(efsm)
-    
+
     return efsm.build()

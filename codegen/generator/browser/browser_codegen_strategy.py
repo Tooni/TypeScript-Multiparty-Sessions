@@ -7,6 +7,7 @@ from codegen.generator.code_generator import Artifact, CodeGenerationStrategy
 _DEFAULT_OUTPUT_DIR = 'web-sandbox/browser'
 _TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 
+
 class BrowserCodegenStrategy(CodeGenerationStrategy,
                              target='browser',
                              default_output=_DEFAULT_OUTPUT_DIR,
@@ -46,19 +47,30 @@ class BrowserCodegenStrategy(CodeGenerationStrategy,
 
         states = []
         for state in endpoint.efsm.send_states:
-            states.append(Artifact(template='send_component.tsx.j2',
-                                   dest=f'S{state.id}.tsx',
-                                   payload={'endpoint': endpoint, 'state': state}))
+            states.append(
+                Artifact(
+                    template='send_component.tsx.j2',
+                    dest=f'S{state.id}.tsx',
+                    payload={
+                        'endpoint': endpoint,
+                        'state': state}))
 
         for state in endpoint.efsm.receive_states:
-            states.append(Artifact(template='receive_component.tsx.j2',
-                                   dest=f'S{state.id}.tsx',
-                                   payload={'endpoint': endpoint, 'state': state}))
+            states.append(
+                Artifact(
+                    template='receive_component.tsx.j2',
+                    dest=f'S{state.id}.tsx',
+                    payload={
+                        'endpoint': endpoint,
+                        'state': state}))
 
         if endpoint.efsm.has_terminal_state():
-            states.append(Artifact(template='terminal_component.tsx.j2',
-                                   dest=f'S{endpoint.efsm.terminal_state.id}.tsx',
-                                   payload={'state': endpoint.efsm.terminal_state}))
+            states.append(
+                Artifact(
+                    template='terminal_component.tsx.j2',
+                    dest=f'S{endpoint.efsm.terminal_state.id}.tsx',
+                    payload={
+                        'state': endpoint.efsm.terminal_state}))
 
         organised_exports = Artifact(template='index.ts.j2',
                                      dest='index.ts',

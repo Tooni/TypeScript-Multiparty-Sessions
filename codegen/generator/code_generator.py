@@ -9,27 +9,31 @@ import typing
 from codegen.automata import Endpoint
 from codegen.utils import logger, TemplateGenerator
 
+
 def _get_prettifier_command(*, path: str) -> typing.List[str]:
     """Generate prettifier command for the file in the specified 'path'."""
-    
+    # TODO: give this proper settings rather than just default.
+    # (default doesn't seem to do much)
     return ['tsfmt', '-r', path]
 
 
-Artifact = typing.NamedTuple('Artifact',
-                             [('template', str), ('dest', str), ('payload', typing.Dict)])
+Artifact = typing.NamedTuple(
+    'Artifact', [
+        ('template', str), ('dest', str), ('payload', typing.Dict)])
 
 
 class CodeGenerationStrategy(ABC):
 
     output: str
 
-    target_to_strategy: typing.Dict[str, typing.Type['CodeGenerationStrategy']] = {}
+    target_to_strategy: typing.Dict[str,
+                                    typing.Type['CodeGenerationStrategy']] = {}
     target_to_default_output: typing.Dict[str, str] = {}
     target_to_template_dir: typing.Dict[str, str] = {}
 
     def __init__(self, output: str):
         self.output = output
-        
+
     @classmethod
     def __init_subclass__(cls, *,
                           target: str,
@@ -41,17 +45,17 @@ class CodeGenerationStrategy(ABC):
         CodeGenerationStrategy.target_to_default_output[target] = default_output
         CodeGenerationStrategy.target_to_template_dir[target] = template_dir
         return super().__init_subclass__()
-    
+
     # @abstractmethod
     # def generate(self, endpoint: Endpoint) -> typing.List[typing.Tuple[str, str]]:
-    #     """Produce APIs for the specified 'endpoint', specifying the files 
-    #     to be created, and the exact content to be written to each file. 
-        
+    #     """Produce APIs for the specified 'endpoint', specifying the files
+    #     to be created, and the exact content to be written to each file.
+
     #     To be implemented by concrete CodeGenerationStrategy classes,
     #     as they define what files/code to generate."""
-        
+
     #     pass
-    
+
     @abstractmethod
     def get_artifacts(self, endpoint: Endpoint) -> typing.Iterable[Artifact]:
         pass
@@ -62,7 +66,7 @@ class CodeGenerator:
     strategy: CodeGenerationStrategy
     output_dir: str
     template_generator: TemplateGenerator
-    
+
     def __init__(self, *, target: str, output_dir: typing.Optional[str]):
 
         StrategyCtor = CodeGenerationStrategy.target_to_strategy.get(target)
@@ -70,7 +74,7 @@ class CodeGenerator:
             raise ValueError(f'Unsupported target: "{target}"')
 
         output_dir = output_dir if output_dir is not None else \
-                        CodeGenerationStrategy.target_to_default_output[target]
+            CodeGenerationStrategy.target_to_default_output[target]
 
         template_dir = CodeGenerationStrategy.target_to_template_dir[target]
 
@@ -87,15 +91,23 @@ class CodeGenerator:
         directory = os.path.join(self.output_dir, protocol, role)
 
         # Generate code in memory, to guarantee atomic writes.
-        artifacts = [(os.path.join(directory, dest), self.template_generator.render(path=template, payload=payload))
-                     for template, dest, payload in self.strategy.get_artifacts(endpoint)]
+        artifacts = [
+            (os.path.join(
+                directory,
+                dest),
+                self.template_generator.render(
+                path=template,
+                payload=payload)) for template,
+            dest,
+            payload in self.strategy.get_artifacts(endpoint)]
 
         # Cleanup existing generated code in file system.
-        directories = set(os.path.dirname(filename) for filename, _ in artifacts)
+        directories = set(os.path.dirname(filename)
+                          for filename, _ in artifacts)
         for directory in directories:
             if os.path.exists(directory):
                 shutil.rmtree(directory)
-            
+
             os.makedirs(directory)
 
         for filename, content in artifacts:
@@ -103,7 +115,8 @@ class CodeGenerator:
 
             # Pipe through code prettifier.
             phase = f'Generate {filename}'
-            completion = subprocess.run(_get_prettifier_command(path=filename), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            completion = subprocess.run(_get_prettifier_command(
+                path=filename), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             exit_code = completion.returncode
             if exit_code != 0:
@@ -111,5 +124,5 @@ class CodeGenerator:
                 return exit_code
 
             logger.SUCCESS(phase)
-        
+
         return 0

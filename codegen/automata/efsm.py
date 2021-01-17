@@ -3,6 +3,7 @@ import typing
 
 from codegen.automata.states import NonTerminalState, ReceiveState, SendState, State, TerminalState
 
+
 class EfsmBuilder:
 
     _roles: typing.Set[str]
@@ -43,7 +44,7 @@ class EfsmBuilder:
 
         self._roles.add(action.role)
         self._terminal_state_candidates.discard(state_id)
-    
+
     def build(self) -> 'EFSM':
         """Build concrete EFSM instance."""
 
@@ -58,6 +59,7 @@ class EfsmBuilder:
                     self._receive_states,
                     self._initial_state_id,
                     terminal_state_id)
+
 
 @dataclass
 class EFSM:
@@ -81,7 +83,7 @@ class EFSM:
         for state in self.nonterminal_states:
             for action in state.actions:
                 action.succ = self[action.succ_id]
-    
+
     @property
     def other_roles(self) -> typing.Set[str]:
         """Return the other roles that this endpoint interacts with."""
@@ -127,7 +129,7 @@ class EFSM:
         """Type guard for 'state' to check if it is a SendState."""
 
         return state.id in self._send_states
-    
+
     def is_receive_state(self, state: State) -> bool:
         """Type guard for 'state' to check if it is a ReceiveState."""
 

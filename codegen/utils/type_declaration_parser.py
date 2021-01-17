@@ -6,6 +6,7 @@ import typing
 
 _TYPESCRIPT_PRIMITIVES = ['boolean', 'number', 'string']
 
+
 @dataclass(frozen=True, eq=True)
 class DataType:
 
@@ -42,7 +43,7 @@ class DataType:
 def parse(filename: str) -> typing.Iterator[typing.Set[DataType]]:
     """Process type declarations from Scribble protocol in 'filename'.
     Add missing primitive types, and return the user-defined types.
-    
+
     Revert the file modifications upon exiting the context."""
 
     f = Path(filename)

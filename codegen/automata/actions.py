@@ -5,6 +5,7 @@ import typing
 
 from codegen.automata.states import State
 
+
 @dataclass
 class Action(ABC):
     """Interface for an action in the EFSM. An action can either be a send or a receive."""
@@ -16,12 +17,12 @@ class Action(ABC):
     payloads: typing.List[str]
     succ: State = field(init=False, compare=False)
 
-    _ACTION_LABEL_REGEX: typing.ClassVar[str] = '(?P<role>.+)(?P<op>[!?])(?P<label>.+)\((?P<payloads>.*)\)'
+    _ACTION_LABEL_REGEX: typing.ClassVar[str] = r'(?P<role>.+)(?P<op>[!?])(?P<label>.+)\((?P<payloads>.*)\)'
     _action_token_to_constructor: typing.ClassVar[typing.Dict[str, typing.Type['Action']]] = {}
 
     @classmethod
     def __init_subclass__(cls, *, action_token: str):
-        """Register a type of action which uses the specified 'action_token' 
+        """Register a type of action which uses the specified 'action_token'
         in the transition label."""
 
         cls._action_token_to_constructor[action_token] = cls
@@ -31,11 +32,11 @@ class Action(ABC):
     def parse(cls, action_label: str, src_state_id: str, dst_state_id: str) -> 'Action':
         """Parse the action specified by 'action_label' (in Scribble notation) into an
         Action instance, transitioning from 'src_state_id' to 'dst_state_id'."""
-        
+
         matcher = re.match(cls._ACTION_LABEL_REGEX, action_label)
         if not matcher:
             raise ValueError(f'Invalid action: "{action_label}"')
-    
+
         components = matcher.groupdict()
         Constructor = Action._action_token_to_constructor.get(components['op'])
         if not Constructor:
@@ -43,7 +44,7 @@ class Action(ABC):
 
         payloads = [payload.strip() for payload in components['payloads'].split(',')
                     if payload.strip()]
-        
+
         return Constructor(role=components['role'],
                            label=components['label'],
                            state_id=src_state_id,
@@ -53,8 +54,8 @@ class Action(ABC):
     @abstractmethod
     def add_to_efsm(self, efsm: 'EfsmBuilder'):
         """Add this Action instance to the specified 'efsm'.
-        
-        To be implemented by concrete Action classes, as they customise 
+
+        To be implemented by concrete Action classes, as they customise
         how the Action is added to the EFSM."""
 
         raise NotImplementedError('Action.add_to_efsm')
