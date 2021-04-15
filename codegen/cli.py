@@ -1,8 +1,6 @@
 from argparse import ArgumentParser
 import typing
 
-import sys
-
 from codegen.automata import Endpoint, parser as automata_parser
 from codegen.generator import CodeGenerator
 from codegen.utils import logger, role_parser, scribble, nuscr, type_declaration_parser
