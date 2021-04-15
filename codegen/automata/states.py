@@ -34,8 +34,9 @@ class NonTerminalState(State, ABC):
         self._actions = {}
 
     @property
-    def role(self) -> str:
-        """Return the role that this state is either receiving from, or sending to."""
+    def first_role(self) -> str:
+        """Return the first role that this state is either receiving from, or sending to."""
+        """This is only valid for finding the recipient, due to well-branchedness."""
 
         return next(iter(self.actions)).role
 

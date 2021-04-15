@@ -5,11 +5,13 @@ import subprocess
 import typing
 
 
-def get_graph(filename: str, protocol: str, role: str) -> typing.Tuple[int, str]:
+def get_graph(filename: str, protocol: str, role: str, server: str = None) -> typing.Tuple[int, str]:
     """Get dot representation of EFSM from νScr.
     Return exit code and command line output."""
 
-    command = ('dune', 'exec', 'nuscr', '--', f'--fsm={role}@{protocol}', filename)
+    if server is None:
+        server = role
+    command = ('dune', 'exec', 'nuscr', '--', f'--routed_fsm={role}@{server}@{protocol}', filename)
 
     completion = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = completion.returncode

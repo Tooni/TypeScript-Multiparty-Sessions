@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 import typing
 
+import sys
+
 from codegen.automata import Endpoint, parser as automata_parser
 from codegen.generator import CodeGenerator
 from codegen.utils import logger, role_parser, scribble, nuscr, type_declaration_parser
@@ -62,7 +64,7 @@ def main(args: typing.List[str]) -> int:
         phase = f'Parse FSM from {scribble_filename}'
         with type_declaration_parser.parse(scribble_filename) as custom_types:
 
-            exit_code, output = nuscr.get_graph(scribble_filename, protocol, role)
+            exit_code, output = nuscr.get_graph(scribble_filename, protocol, role, server)
             if exit_code != 0:
                 logger.FAIL(phase)
                 logger.ERROR(output)

@@ -26,10 +26,10 @@ type Props = {
 }
 
 /**
- * __Sends to  {{ state.role }}.__ Possible messages:
+ * __Send state: Possible messages:
  *
  {% for action in state.actions -%}
- * * __{{ action.label }}__({{ action.payloads|join(', ') }})
+ * * __Sends to {{ action.role }}, {{ action.label }}__({{ action.payloads|join(', ') }})
  {% endfor -%}
  */
 export default abstract class S{{ state }}<ComponentState = {}> extends React.Component<Props, ComponentState>
@@ -43,15 +43,15 @@ export default abstract class S{{ state }}<ComponentState = {}> extends React.Co
     {% for action in state.actions -%}
     {% if endpoint.efsm.is_send_state(action.succ) -%}
     this.{{ action.label }} = props.factory<[{{ action.payloads|join(', ') }}]>(
-      Roles.Peers.{{ state.role }}, '{{ action.label }}' , SendState.S{{ action.succ }}
+      Roles.Peers.{{ action.role }}, '{{ action.label }}' , SendState.S{{ action.succ }}
     );
     {% elif endpoint.efsm.is_receive_state(action.succ) -%}
     this.{{ action.label }} = props.factory<[{{ action.payloads|join(', ') }}]>(
-      Roles.Peers.{{ state.role }}, '{{ action.label }}' , ReceiveState.S{{ action.succ }}
+      Roles.Peers.{{ action.role }}, '{{ action.label }}' , ReceiveState.S{{ action.succ }}
     );
     {% else -%}
     this.{{ action.label }} = props.factory<[{{ action.payloads|join(', ') }}]>(
-      Roles.Peers.{{ state.role }}, '{{ action.label }}' , TerminalState.S{{ action.succ }}
+      Roles.Peers.{{ action.role }}, '{{ action.label }}' , TerminalState.S{{ action.succ }}
     );
     {% endif -%}
     {% endfor %}

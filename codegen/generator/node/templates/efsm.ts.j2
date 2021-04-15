@@ -68,7 +68,7 @@ export namespace Handler
   export type S{{ state }} =
     MaybePromise<
     {% for action in state.actions -%}
-      | ["{{ action.label }}", Message.S{{ state ~ '_' ~ action.label }}['payload'], State.S{{ action.succ }}]
+      | ["{{ action.label }}", Message.S{{ state ~ '_' ~ action.label }}['payload'], State.S{{ action.succ }}, Role.Peers.{{ action.role }}]
     {% endfor %}
     >;
   {% endfor %}
@@ -106,8 +106,8 @@ export namespace State
     constructor(public handler: Handler.S{{ state }}) {}
 
     performSend(next: StateTransitionHandler, cancel: Cancellation, send: SendStateHandler) {
-      const thunk = ([label, payload, successor]: FromPromise<Handler.S{{ state }}>) => {
-        send(Role.Peers.{{ state.role }}, label, payload);
+      const thunk = ([label, payload, successor, role]: FromPromise<Handler.S{{ state }}>) => {
+        send(role, label, payload);
         return next(successor);
       };
 
@@ -151,7 +151,7 @@ export namespace State
         }
       };
 
-      register(Role.Peers.{{ state.role }}, onReceive);
+      register(Role.Peers.{{ state.first_role }}, onReceive);
     }
   };
   {% endfor %}
@@ -187,10 +187,10 @@ export namespace Factory
     if (typeof args[1] === 'function') {
       const [payload, generateSuccessor] = args;
       const successor = generateSuccessor(S{{ action.succ }});
-      return new State.S{{ state }}(["{{ action.label }}", payload, successor]);
+      return new State.S{{ state }}(["{{ action.label }}", payload, successor, Role.Peers.{{ action.role }}]);
     } else {
       const [payload, successor] = args;
-      return new State.S{{ state }}(["{{ action.label }}", payload, successor]);
+      return new State.S{{ state }}(["{{ action.label }}", payload, successor, Role.Peers.{{ action.role }}]);
     }
   }
   {% endfor %}

@@ -48,7 +48,7 @@ type Props = {
 };
 
 /**
- * __Receives from {{ state.role }}.__ Possible messages:
+ * __Receives from {{ state.first_role }}.__ Possible messages:
  *
  {% for action in state.actions -%}
  * * __{{ action.label }}__({{ action.payloads|join(', ') }})
@@ -58,7 +58,7 @@ export default abstract class S{{ state }}<ComponentState = {}> extends React.Co
 {
 
   componentDidMount() {
-    this.props.register(Roles.Peers.{{ state.role }}, this.handle.bind(this));
+    this.props.register(Roles.Peers.{{ state.first_role }}, this.handle.bind(this));
   }
 
   handle(message: any): MaybePromise<State> {
