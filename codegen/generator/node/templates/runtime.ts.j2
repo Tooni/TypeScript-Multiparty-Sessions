@@ -34,8 +34,6 @@ interface WebSocketMessage {
   target: WebSocket
 };
 
-type ConnectionContext = [Set<Role.Peers>, Partial<RoleToSocket>, Map<WebSocket, Role.Peers>];
-
 // ================
 // Connection Phase
 // ================
@@ -50,23 +48,6 @@ namespace Connect {
   };
 };
 
-// Factory function to create a new connection context to keep track
-// of pending connections before instantiating a session.
-const makeNewContext = (): ConnectionContext => {
-  // Keep track of participants that have yet to join.
-  const waiting: Set<Role.Peers> = new Set([{% for role in endpoint.other_roles %}Role.Peers.{{ role ~ (',' if not loop.last else '') }}{% endfor %}]);
-
-  // Keep track of mapping between role and WebSocket.
-  const roleToSocket: Partial<RoleToSocket> = {
-    {% for role in endpoint.other_roles -%}
-    [Role.Peers.{{ role }}]: undefined,
-    {%- endfor %}
-  };
-  const socketToRole = new Map<WebSocket, Role.Peers>();
-
-  return [waiting, roleToSocket, socketToRole];
-};
-
 export class {{ endpoint.role }}
 {
   constructor(wss: WebSocket.Server,
@@ -74,8 +55,17 @@ export class {{ endpoint.role }}
               initialise: StateInitialiser<string>,
               generateID: () => string = uuidv1)
   {
-    let connectionContexts: ConnectionContext[] = [
-      makeNewContext(),
+    let connectionContexts: Session[];
+
+    let removeSession = (s: Session) => {
+      const sIndex = connectionContexts.indexOf(s);
+      if (sIndex > -1) {
+          connectionContexts.splice(sIndex, 1);
+      }
+    }
+
+    connectionContexts = [
+      new Session(generateID(), cancellation, initialise, removeSession)
     ];
 
     // Handle explicit cancellation during the join phase.
@@ -83,10 +73,11 @@ export class {{ endpoint.role }}
       socket.removeAllListeners();
 
       // Wait for the role again - guaranteed to occur in map by construction.
-      for (const [waiting, _, socketToRole] of connectionContexts) {
-        const role = socketToRole.get(socket);
+      for (const session of connectionContexts) {
+        const role = session.getRoleFromSocket(socket);
         if (role !== undefined) {
-            waiting.add(role);
+            // Might need to check if role is optional? todo
+            session.startWaitingFor(role);
             return;
         }
       }
@@ -97,43 +88,33 @@ export class {{ endpoint.role }}
       const { data, target: socket } = event;
       const { connect: role } = Message.deserialise<Connect.Request>(data);
 
-      for (let i = 0; i < connectionContexts.length; ++i) {
-        const [waiting, roleToSocket, socketToRole] = connectionContexts[i];
-        if (waiting.has(role)) {
-          // Update role-WebSocket mapping.
-          roleToSocket[role] = socket;
-          socketToRole.set(socket, role);
-          waiting.delete(role);
+      for (let i = 0; i < connectionContexts.length; i++) {
+        const session = connectionContexts[i];
+        if (session.isWaitingFor(role)) {
+          session.stopWaitingFor(role);
+          session.addRole(role, socket);
 
-          if (waiting.size === 0) {
-            connectionContexts = connectionContexts.filter((_, j) => j !== i);
-            
-            // Execute protocol when all participants have joined.
-            new Session(
-                generateID(),
-                wss,
-                roleToSocket as RoleToSocket,
-                cancellation,
-                initialise
-            );
-
-            if (connectionContexts.length === 0) {
-              connectionContexts.push(makeNewContext());
-            }
+          if (session.isNotWaitingForRoles()) {
+            const newContext = new Session(generateID(), cancellation, initialise, removeSession)
+            connectionContexts.push(newContext);
           }
           return;
         }
       }
 
+      const initialMandatoryRoles = new Set([{% for role in endpoint.mandatory_roles %}Role.Peers.{{ role ~ (',' if not loop.last else '') }}{% endfor %}]);
+      if (!initialMandatoryRoles.has(role)) {
+        return;
+      }
+
       // Role occupied in all existing connection contexts;
       // Create new connection context.
-      const context = makeNewContext();
-      const [waiting, roleToSocket, socketToRole] = context;
+      const context = new Session(generateID(), cancellation, initialise, removeSession)
+      const session = context;
 
       // Update role-WebSocket mapping.
-      roleToSocket[role] = socket;
-      socketToRole.set(socket, role);
-      waiting.delete(role);
+      session.addRole(role, socket);
+      session.stopWaitingFor(role);
 
       connectionContexts.push(context);
     }
@@ -151,44 +132,41 @@ export class {{ endpoint.role }}
 class Session {
 
   private id: string;
-  private wss: WebSocket.Server;
-  private roleToSocket: RoleToSocket;
+  private roleToSocket: Map<Role.Peers, WebSocket>;
+  private socketToRole: Map<WebSocket, Role.Peers>;
   private cancellation: Cancellation.Handler<string>;
   private initialise: StateInitialiser<string>;
+  private removeSession: (s: Session) => void;
+
+  private waiting: Set<Role.Peers>;
 
   private activeRoles: Set<Role.Peers>;
   private messageQueue: RoleToMessageQueue;
   private handlerQueue: RoleToHandlerQueue;
+  private sendQueue: RoleToMessageQueue;
   
   constructor(id: string,
-              wss: WebSocket.Server,
-              roleToSocket: RoleToSocket,
-              cancellation: Cancellation.Handler<string>,
-              initialise: StateInitialiser<string>)
+    cancellation: Cancellation.Handler<string>,
+    initialise: StateInitialiser<string>,
+    removeSession: (s: Session) => void)
   {
     this.id = id;
-    this.wss = wss;
-    this.roleToSocket = roleToSocket;
+    this.roleToSocket = new Map<Role.Peers, WebSocket>();
+    this.socketToRole = new Map<WebSocket, Role.Peers>();
     this.cancellation = cancellation;
     this.initialise = initialise;
+    this.removeSession = removeSession;
+
+    this.waiting = new Set([{% for role in endpoint.mandatory_roles %}Role.Peers.{{ role ~ (',' if not loop.last else '') }}{% endfor %}]);
 
     // Keep track of active participants in the session.
-    this.activeRoles = new Set([{% for role in endpoint.other_roles %}Role.Peers.{{ role ~ (',' if not loop.last else '') }}{% endfor %}]);
+    this.activeRoles = new Set();
 
     // Bind `this` instances to callbacks
     this.next = this.next.bind(this);
     this.cancel = this.cancel.bind(this);
     this.send = this.send.bind(this);
     this.registerMessageHandler = this.registerMessageHandler.bind(this);
-
-    // Bind event listeners to WebSockets
-    Object.values(Role.Peers).forEach(role => {
-      const socket = this.roleToSocket[role];
-
-      // Bind handlers for message receive and socket close.
-      socket.onmessage = this.receive(role).bind(this);
-      socket.onclose = this.close(role).bind(this);
-    });
     
     // Initialise queues for receiving.
     this.messageQueue = {
@@ -203,12 +181,52 @@ class Session {
       {%- endfor %}
     };
 
-    // Notify all roles for confirming the connection.
-    Object.values(this.roleToSocket).forEach(socket => {
-      socket.send(Message.serialise(Connect.Confirm));
-    });
+    this.sendQueue = {
+      {% for role in endpoint.other_roles -%}
+      [Role.Peers.{{ role }}]: [],
+      {%- endfor %}
+    };
 
     this.next(initialise(this.id));
+  }
+
+  isNotWaitingForRoles() {
+      return this.waiting.size === 0;
+  }
+
+  isWaitingFor(role: Role.Peers) {
+      return this.waiting.has(role);
+  }
+
+  stopWaitingFor(role: Role.Peers) {
+      return this.waiting.delete(role);
+  }
+
+  startWaitingFor(role: Role.Peers) {
+      return this.waiting.add(role);
+  }
+
+  getRoleFromSocket(socket: WebSocket) {
+      return this.socketToRole.get(socket);
+  }
+
+  addRole(role: Role.Peers, socket: WebSocket) {
+    this.roleToSocket.set(role, socket);
+    this.socketToRole.set(socket, role);
+
+    socket.send(Message.serialise(Connect.Confirm)); 
+
+    this.activeRoles.add(role);
+
+    socket.onmessage = this.receive(role).bind(this);
+    socket.onclose = this.close(role).bind(this);
+
+    // Send all queued messages...
+    var queuedMessage = this.sendQueue[role].shift()
+    while (queuedMessage) {
+      this.sendMessage(role, queuedMessage);
+      queuedMessage = this.sendQueue[role].shift()
+    }
   }
 
   // ===================
@@ -232,24 +250,34 @@ class Session {
 
   send(to: Role.Peers, label: string, payload: any[], from: Role.All = Role.Self) {
     const message = Message.serialise<Message.Channel>({ role: from, label, payload });
+    this.sendMessage(to, message);
+  }
+
+  sendMessage(to: Role.Peers, message: string) {
     const onError = (error?: Error) => {
       if (error !== undefined) {
-        
         // Only flag an error if the recipient is meant to be active,
         // and the message cannot be sent.
         if (this.activeRoles.has(to)) {
           throw new Error(`Cannot send to role: ${to}`);
         }
-
       }
     };
-    this.roleToSocket[to].send(message, onError);
+    if (this.roleToSocket.has(to)) {
+      this.roleToSocket.get(to)?.send(message, onError);
+    } else {
+      this.sendQueue[to].push(message);
+    }
   }
 
   receive(from: Role.Peers) {
     return ({ data }: WebSocketMessage) => {
       const { role, label, payload } = Message.deserialise<Message.Channel>(data);
       if (role !== Role.Self) {
+        const peer = role as Role.Peers
+        if (!this.activeRoles.has(peer)) {
+          this.waiting.add(peer);
+        }
         // Route message
         this.send(role, label, payload, from);
       } else {
@@ -312,6 +340,9 @@ class Session {
   close(role: Role.Peers) {
     return ({ target: socket, code, reason }: WebSocket.CloseEvent) => {
       this.activeRoles.delete(role);
+      if (this.activeRoles.size === 0) {
+        this.removeSession(this);
+      }
       switch (code) {
         case Cancellation.Receive.NORMAL: {
           // Unsubscribe from socket events.

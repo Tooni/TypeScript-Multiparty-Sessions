@@ -73,9 +73,11 @@ def main(args: typing.List[str]) -> int:
         logger.ERROR(error)
         return 1
 
+    output_split = output.split("mandatory:")
+    dot = output_split[0]
     phase = f'Parse endpoint IR from Scribble output'
     try:
-        efsm = automata_parser.from_data(output)
+        efsm = automata_parser.from_data(dot)
         logger.SUCCESS(phase)
     except ValueError as error:
         logger.FAIL(phase)
@@ -85,9 +87,17 @@ def main(args: typing.List[str]) -> int:
     all_roles = role_parser.parse(parsed_args['filename'], parsed_args['protocol'])
     other_roles = all_roles - set([parsed_args['role']])
 
+    mandatory_and_optional_roles = output_split[1].split("optional:")
+    mandatory_roles = [s.strip() for s in mandatory_and_optional_roles[0].split(",")]
+    if server is None:
+        mandatory_roles.remove(role)
+    elif role not in optional_roles:
+        mandatory_roles.remove(role)
+
     endpoint = Endpoint(protocol=protocol,
                         role=role,
                         other_roles=other_roles,
+                        mandatory_roles=mandatory_roles,
                         server=server,
                         efsm=efsm,
                         types=custom_types)

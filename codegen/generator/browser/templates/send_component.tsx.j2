@@ -41,19 +41,17 @@ export default abstract class S{{ state }}<ComponentState = {}> extends React.Co
   constructor(props: Props) {
     super(props);
     {% for action in state.actions -%}
-    {% if endpoint.efsm.is_send_state(action.succ) -%}
     this.{{ action.label }} = props.factory<[{{ action.payloads|join(', ') }}]>(
-      Roles.Peers.{{ action.role }}, '{{ action.label }}' , SendState.S{{ action.succ }}
+      Roles.Peers.{{ action.role }}, 
+      '{{ action.label }}',
+      {%- if endpoint.efsm.is_send_state(action.succ) %}
+      SendState
+      {%- elif endpoint.efsm.is_receive_state(action.succ) %}
+      ReceiveState
+      {%- else %}
+      TerminalState{%- endif -%}
+      .S{{ action.succ }}
     );
-    {% elif endpoint.efsm.is_receive_state(action.succ) -%}
-    this.{{ action.label }} = props.factory<[{{ action.payloads|join(', ') }}]>(
-      Roles.Peers.{{ action.role }}, '{{ action.label }}' , ReceiveState.S{{ action.succ }}
-    );
-    {% else -%}
-    this.{{ action.label }} = props.factory<[{{ action.payloads|join(', ') }}]>(
-      Roles.Peers.{{ action.role }}, '{{ action.label }}' , TerminalState.S{{ action.succ }}
-    );
-    {% endif -%}
-    {% endfor %}
+    {% endfor -%}
   }
 }

@@ -276,7 +276,8 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
   // ===============
 
   private sendMessage(role: Roles.Peers, label: string, payload: any, successor: State) {
-    this.props.ws.send(JSON.stringify(Message.toChannel(role, label, payload)));
+    const jsonString = JSON.stringify(Message.toChannel(role, label, payload));
+    this.props.ws.send(jsonString);
     this.advance(successor);
   }
 
