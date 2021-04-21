@@ -1,3 +1,4 @@
+import sys
 import unittest
 
 from codegen.tests.system.factory import build_test_suite
@@ -11,4 +12,5 @@ if __name__ == "__main__":
     suite = build_test_suite(tests)
 
     runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(suite)
+    result = runner.run(suite)
+    sys.exit(not result.wasSuccessful())

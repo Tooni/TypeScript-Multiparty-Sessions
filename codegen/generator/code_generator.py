@@ -115,13 +115,13 @@ class CodeGenerator:
 
             # Pipe through code prettifier.
             phase = f'Generate {filename}'
-            completion = subprocess.run(_get_prettifier_command(
-                path=filename), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # completion = subprocess.run(_get_prettifier_command(
+            #     path=filename), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            exit_code = completion.returncode
-            if exit_code != 0:
-                logger.FAIL(phase)
-                return exit_code
+            # exit_code = completion.returncode
+            # if exit_code != 0:
+            #     logger.FAIL(phase)
+            #     return exit_code
 
             logger.SUCCESS(phase)
 

@@ -89,12 +89,11 @@ def main(args: typing.List[str]) -> int:
 
     mandatory_and_optional_roles = output_split[1].split("optional:")
     mandatory_roles = [s.strip() for s in mandatory_and_optional_roles[0].split(",")]
-    print(mandatory_roles)
     if server is None:
         mandatory_roles.remove(role)
     else:
         mandatory_roles.remove(server)
-    print(mandatory_roles)
+
     endpoint = Endpoint(protocol=protocol,
                         role=role,
                         other_roles=other_roles,
