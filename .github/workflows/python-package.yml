@@ -8,11 +8,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -45,8 +41,7 @@ jobs:
     - name: Run Python tests
       run: |
         eval $(opam config env)
-        cd web-sandbox
-        cd node
+        cd web-sandbox/node
         npm i
         cd ../browser
         npm i
