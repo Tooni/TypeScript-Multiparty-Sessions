@@ -25,19 +25,34 @@ import { {{ type.external ~ ((' as ' ~ type.alias) if type.external != type.alia
 // ==================
 
 enum Labels {
-  {% for label in state.labels -%}
-  {{ label }} = '{{ label}}',
-  {%- endfor %}
+  {%- for label in state.labels %}
+  {{ label }} = '{{ label }}',{% endfor %}
 }
 
-{% for action in state.actions -%}
-interface {{ action.label }}Message {
-  label: Labels.{{ action.label }},
-  payload: [{{ action.payloads|join(', ') }}],
-};
-{% endfor %}
+export namespace Payloads {
+{%- for action in state.actions -%}
+{%- if action.payloads|length > 0 %}
+  export interface {{ action.label }} {
+    {%- for payload in action.payloads %}
+    {{ payload.name }}: {{ payload.sort }};
+    {%- endfor %}
+  };
+{%- endif %}
+{%- endfor %}
+}
 
-type Message = {% for label in state.labels -%}{{ '| ' ~ label ~ 'Message' }}{%- endfor %}
+namespace Messages {
+{%- for action in state.actions %}
+  export interface {{ action.label }} {
+    label: Labels.{{ action.label }};
+    {% if action.payloads|length > 0 -%}
+    payload: Payloads.{{ action.label }};
+    {%- endif %}
+  };
+{%- endfor %}
+}
+
+type Message = {% for label in state.labels -%}Messages.{{ label ~ (' | ' if not loop.last else '') }}{%- endfor %}
 
 // ===============
 // Component types
@@ -51,11 +66,10 @@ type Props = {
  * __Receives from {{ state.first_role }}.__ Possible messages:
  *
  {% for action in state.actions -%}
- * * __{{ action.label }}__({{ action.payloads|join(', ') }})
+ * * __{{ action.label }}__(Payloads.{{ action.label }})
  {% endfor -%}
  */
-export default abstract class S{{ state }}<ComponentState = {}> extends React.Component<Props, ComponentState>
-{
+export default abstract class S{{ state }}<ComponentState = {}> extends React.Component<Props, ComponentState> {
 
   componentDidMount() {
     this.props.register(Roles.Peers.{{ state.first_role }}, this.handle.bind(this));
@@ -67,15 +81,15 @@ export default abstract class S{{ state }}<ComponentState = {}> extends React.Co
       {% for action in state.actions -%}
       case Labels.{{ action.label }}: {
         const thunk = () =>
-          {%- if endpoint.efsm.is_send_state(action.succ) -%}
-          SendState.S{{ action.succ }};
-          {%- elif endpoint.efsm.is_receive_state(action.succ) -%}
-          ReceiveState.S{{ action.succ }};
-          {%- else -%}
-          TerminalState.S{{ action.succ }};
-          {%- endif %}
+          {%- if endpoint.efsm.is_send_state(action.succ) %}
+          SendState
+          {%- elif endpoint.efsm.is_receive_state(action.succ) %}
+          ReceiveState
+          {%- else %}
+          TerminalState{%- endif -%}
+          .S{{ action.succ }}
 
-        const continuation = this.{{ action.label }}(...parsedMessage.payload);
+        const continuation = this.{{ action.label }}({% if action.payloads|length > 0 %}parsedMessage.payload{% endif %});
         if (continuation instanceof Promise) {
           return new Promise((resolve, reject) => {
             continuation.then(() => {
@@ -86,11 +100,11 @@ export default abstract class S{{ state }}<ComponentState = {}> extends React.Co
           return thunk();
         }
       }
-      {%- endfor %}
+      {% endfor %}
     }
   }
 
   {% for action in state.actions -%}
-  abstract {{ action.label }}({%- for payload in action.payloads -%}{{ 'payload' ~ loop.index ~ ': ' ~ payload ~ ', ' }}{%- endfor -%}): MaybePromise<void>;
+  abstract {{ action.label }}({% if action.payloads|length > 0 %}payload: Payloads.{{ action.label }}{% endif %}): MaybePromise<void>;
   {% endfor %}
 }

@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import typing
+import json
 
 from codegen.automata import Endpoint, parser as automata_parser
 from codegen.generator import CodeGenerator
@@ -75,24 +76,30 @@ def main(args: typing.List[str]) -> int:
 
     output_split = output.split("mandatory:")
     dot = output_split[0]
+
+    mandatory_optional_and_json = output_split[1].split("optional:")
+    mandatory_roles = [s.strip() for s in mandatory_optional_and_json[0].split(",")]
+    if server is None:
+        mandatory_roles.remove(role)
+    else:
+        mandatory_roles.remove(server)
+    optional_and_json = mandatory_optional_and_json[1]
+    edge_json_str = optional_and_json.split('json:')[1]
+    #print(edge_json_str)
+    edge_json = json.loads(edge_json_str)
+
     phase = f'Parse endpoint IR from Scribble output'
     try:
-        efsm = automata_parser.from_data(dot)
+        efsm = automata_parser.from_data(dot, edge_json)
         logger.SUCCESS(phase)
     except ValueError as error:
         logger.FAIL(phase)
         logger.ERROR(error)
         return 1
 
-    all_roles = role_parser.parse(parsed_args['filename'], parsed_args['protocol'])
+    # TODO: do w/o reg exp
+    all_roles = role_parser.parse(parsed_args['filename'], parsed_args['protocol']) 
     other_roles = all_roles - set([parsed_args['role']])
-
-    mandatory_and_optional_roles = output_split[1].split("optional:")
-    mandatory_roles = [s.strip() for s in mandatory_and_optional_roles[0].split(",")]
-    if server is None:
-        mandatory_roles.remove(role)
-    else:
-        mandatory_roles.remove(server)
 
     endpoint = Endpoint(protocol=protocol,
                         role=role,

@@ -11,11 +11,11 @@ def from_file(path: str) -> EFSM:
     return _parse_graph(graph)
 
 
-def from_data(data: str) -> EFSM:
+def from_data(data: str, edge_json: dict) -> EFSM:
     """Parse EFSM reprsentation from the specified string 'data'."""
 
     graph = dotpruner.process_from_string(data)
-    return _parse_graph(graph)
+    return _parse_graph(graph, edge_json)
 
 
 def _extract(token: str) -> str:
@@ -24,7 +24,7 @@ def _extract(token: str) -> str:
     return token[1:-1]
 
 
-def _parse_graph(graph: pydot.Graph) -> EFSM:
+def _parse_graph(graph: pydot.Graph, edge_json: dict) -> EFSM:
     """Build internal EFSM representation from specified DOT 'graph'."""
 
     from .actions import Action
@@ -37,10 +37,9 @@ def _parse_graph(graph: pydot.Graph) -> EFSM:
 
         src = edge.get_source()
         dst = edge.get_destination()
-        # 'label' has speech marks around it.
-        label = _extract(edge.get_label())
+        edge_info = edge_json[_extract(edge.get_label())]
 
-        action = Action.parse(label, src, dst)
+        action = Action.parse(edge_info, src, dst)
         action.add_to_efsm(efsm)
 
     return efsm.build()

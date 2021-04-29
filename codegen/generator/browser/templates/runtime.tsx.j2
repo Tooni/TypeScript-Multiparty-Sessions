@@ -207,7 +207,7 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
 
       return;
     }
-    {% endif -%}
+    {% endif %}
   }
 
   private buildSendElement<T>(role: Roles.Peers, label: string, successor: State): SendComponentFactory<T> {

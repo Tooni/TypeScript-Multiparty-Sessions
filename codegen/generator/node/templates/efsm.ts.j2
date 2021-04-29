@@ -42,9 +42,14 @@ export namespace Message
 {
   {% for state in endpoint.efsm.nonterminal_states %}
   {% for action in state.actions -%}
+  export interface S{{ state ~ '_' ~ action.label }}_payload {
+  {%- for payload in action.payloads %}
+    {{ payload.name }}: {{ payload.sort }},
+  {%- endfor %}
+  }
   export interface S{{ state ~ '_' ~ action.label }} {
     label: "{{ action.label }}",
-    payload: [{{ action.payloads|join(', ') }}],
+    payload: S{{ state ~ '_' ~ action.label }}_payload
   };
   {% endfor %}
   export type S{{ state }} = {% for action in state.actions -%}
@@ -54,7 +59,7 @@ export namespace Message
   export interface Channel {
     role: Role.All;
     label: string;
-    payload: any[];
+    payload: any;
   };
 
   export const serialise = <T> (obj: T) => JSON.stringify(obj);
@@ -75,7 +80,7 @@ export namespace Handler
   {% for state in endpoint.efsm.receive_states -%}
   export interface S{{ state }} {
     {% for action in state.actions -%}
-    "{{ action.label }}": (Next: typeof Factory.S{{ action.succ }}, ...payload: Message.S{{ state ~ '_' ~ action.label }}['payload']) => MaybePromise<State.S{{ action.succ }}>,
+    "{{ action.label }}": (Next: typeof Factory.S{{ action.succ }}, payload: Message.S{{ state ~ '_' ~ action.label }}['payload']) => MaybePromise<State.S{{ action.succ }}>,
     {% endfor %}
   };
   {% endfor %}
@@ -136,7 +141,7 @@ export namespace State
           {% for action in state.actions -%}
           case "{{ action.label }}": {
             try {
-              const successor = this.handler[parsed.label](Factory.S{{ action.succ }}, ...parsed.payload);
+              const successor = this.handler[parsed.label](Factory.S{{ action.succ }}, parsed.payload);
               if (successor instanceof Promise) {
                 successor.then(next).catch(cancel);
               } else {

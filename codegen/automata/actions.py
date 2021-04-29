@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-import re
 import typing
 
 from codegen.automata.states import State
+from codegen.automata.payloads import Payload
 
 
 @dataclass
@@ -14,10 +14,9 @@ class Action(ABC):
     label: str
     state_id: str
     succ_id: str
-    payloads: typing.List[str]
+    payloads: typing.List[Payload]
     succ: State = field(init=False, compare=False)
 
-    _ACTION_LABEL_REGEX: typing.ClassVar[str] = r'(?P<role>.+)(?P<op>[!?])(?P<label>.+)\((?P<payloads>.*)\)'
     _action_token_to_constructor: typing.ClassVar[typing.Dict[str, typing.Type['Action']]] = {}
 
     @classmethod
@@ -29,24 +28,21 @@ class Action(ABC):
         return super().__init_subclass__()
 
     @classmethod
-    def parse(cls, action_label: str, src_state_id: str, dst_state_id: str) -> 'Action':
+    def parse(cls, edge_info: dict, src_state_id: str, dst_state_id: str) -> 'Action':
         """Parse the action specified by 'action_label' (in Scribble notation) into an
         Action instance, transitioning from 'src_state_id' to 'dst_state_id'."""
 
-        matcher = re.match(cls._ACTION_LABEL_REGEX, action_label)
-        if not matcher:
-            raise ValueError(f'Invalid action: "{action_label}"')
-
-        components = matcher.groupdict()
-        Constructor = Action._action_token_to_constructor.get(components['op'])
+        Constructor = Action._action_token_to_constructor.get(edge_info['op'])
         if not Constructor:
-            raise ValueError(f'Unsupported operation: "{components["op"]}"')
+            raise ValueError(f'Unsupported operation: "{edge_info["op"]}"')
 
-        payloads = [payload.strip() for payload in components['payloads'].split(',')
-                    if payload.strip()]
+        payloads = [Payload(**payload_info) for payload_info in edge_info['payloads']]
+        # payloads = [payload_info['sort'] for payload_info in edge_info['payloads']]
 
-        return Constructor(role=components['role'],
-                           label=components['label'],
+        # TODO: rec expr updates, silent vars
+
+        return Constructor(role=edge_info['role'],
+                           label=edge_info['label'],
                            state_id=src_state_id,
                            succ_id=dst_state_id,
                            payloads=payloads)

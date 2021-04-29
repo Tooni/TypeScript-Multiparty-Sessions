@@ -19,7 +19,7 @@ class NodeCodegenStrategy(CodeGenerationStrategy,
                         dest='EFSM.ts',
                         payload={'endpoint': endpoint})
 
-        session_runtime = Artifact(template='runtime.ts.j2',
+        session_runtime = Artifact(template='runtime_old.ts.j2',
                                    dest='Runtime.ts',
                                    payload={'endpoint': endpoint})
 
