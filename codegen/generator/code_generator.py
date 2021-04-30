@@ -82,7 +82,7 @@ class CodeGenerator:
         self.output_dir = output_dir
         self.template_generator = TemplateGenerator(dirname=template_dir)
 
-    def generate(self, endpoint: Endpoint) -> int:
+    def generate(self, endpoint: Endpoint, prettify: bool) -> int:
         """Generate APIs for the specified 'endpoint' and write the changes to file.
         Return the exit code."""
 
@@ -112,8 +112,17 @@ class CodeGenerator:
 
         for filename, content in artifacts:
             Path(filename).write_text(content)
+
+            # Pipe through code prettifier.
             phase = f'Generate {filename}'
 
-            logger.SUCCESS(phase)
+            if prettify:
+                completion = subprocess.run(_get_prettifier_command(path=filename), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+                exit_code = completion.returncode
+                if exit_code != 0:
+                    logger.FAIL(phase)
+                    return exit_code
+
+            logger.SUCCESS(phase)
         return 0

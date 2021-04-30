@@ -29,7 +29,13 @@ def parse_arguments(args: typing.List[str]) -> typing.Dict:
                         type=str, help='Server role (only applicable for browser targets)')
 
     parser.add_argument('-o', '--output',
-                         type=str, help='Output directory for generation')
+                        type=str, help='Output directory for generation')
+
+    parser.add_argument('--prettify', dest='prettify', action='store_true',
+                        help="States that tsfmt should be used to lint/reformat the files.")
+    parser.add_argument('--no-prettify', dest='prettify', action='store_false',
+                        help='States that tsfmt should not be used to lint/reformat the files.')
+    parser.set_defaults(prettify=True)
 
     parsed_args = parser.parse_args(args)
     return vars(parsed_args)
@@ -46,6 +52,7 @@ def main(args: typing.List[str]) -> int:
     protocol = parsed_args['protocol']
     output_dir = parsed_args['output']
     scribble_filename = parsed_args['filename']
+    prettify = parsed_args['prettify']
 
     if target == 'browser' and server is None:
         # 'server' flag must be provided if the codegen target is the browser.
@@ -85,7 +92,6 @@ def main(args: typing.List[str]) -> int:
         mandatory_roles.remove(server)
     optional_and_json = mandatory_optional_and_json[1]
     edge_json_str = optional_and_json.split('json:')[1]
-    #print(edge_json_str)
     edge_json = json.loads(edge_json_str)
 
     phase = f'Parse endpoint IR from Scribble output'
@@ -112,7 +118,7 @@ def main(args: typing.List[str]) -> int:
     codegen = CodeGenerator(target=target, output_dir=output_dir)
     phase = f'Generate all {target} artifacts in {codegen.output_dir}'
     try:
-        exit_code = codegen.generate(endpoint)
+        exit_code = codegen.generate(endpoint, prettify)
         if exit_code != 0:
             logger.FAIL(phase)
         else:

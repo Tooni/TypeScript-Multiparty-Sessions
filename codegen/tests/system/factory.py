@@ -31,7 +31,9 @@ def _build_test_case(*,
         def test_code_generation(self):
 
             print()
-            flags = [os.path.join(TEST_DIR, 'examples', filename), protocol, role, target]
+            flags = [os.path.join(TEST_DIR, 'examples', filename),
+                     protocol, role, target,
+                     "--no-prettify"]
             if target == 'browser':
                 flags += ['-s', server]
 
