@@ -162,7 +162,7 @@ class Session {
 
   private varMap: Map<string, any>;
   private refMap: Map<string, () => boolean>;
-  private recExprMap: Map<string, () => void>;
+  private recExprMap: Map<string, [string, () => void]>;
   
   constructor(id: string,
               wss: WebSocket.Server,
@@ -179,14 +179,21 @@ class Session {
     this.varMap = new Map<string, any>();
     this.refMap = new Map<string, () => boolean>(
       [ 
-{% for (r_id, r) in endpoint.refinements -%}
-        ["{{ r_id }}", () => {{ r }}],
+{% for (ident, ref) in endpoint.refinements -%}
+        ["{{ ident }}", () => {{ ref }}],
+{% endfor -%}
+{%- for (name, init, variables, ref) in endpoint.rec_exprs -%}
+{%- if ref|length > 0 %}
+        ["recExpr:{{ name }}", () => {{ ref }}],
+{%- endif %}
 {% endfor -%}
       ]
     );
-    this.recExprMap = new Map<string, () => void> (
+    this.recExprMap = new Map<string, [string, () => void]> (
       [
-        ["C>counter>P", () => { this.varMap.set("currentPrice", this.varMap.get("newCounterPrice")) }]
+{% for (ident, name, update) in endpoint.rec_expr_updates -%}
+        ["{{ ident }}", ["{{ name }}", () => { this.varMap.set("{{ name }}", {{ update }}) }]],
+{% endfor -%}
       ]
     );
 
@@ -242,39 +249,36 @@ class Session {
   }
 
   initRecExprs() {
-    if (!this.varMap.has("currentPrice") && this.varMap.has("initialPrice")) { // do this for every recexpr
-      this.varMap.set("currentPrice", this.varMap.get("initialPrice"))
-      // todo: check refinements
-      //this.checkRefinementForRecExpr("recExpr:currentPrice")
+    {% for (name, init, variables, ref) in endpoint.rec_exprs -%}
+    if (!this.varMap.has("{{ name }}"){{ variables }}) {
+      this.varMap.set("{{ name }}", {{ init }});
+      {%- if ref|length > 0 %}
+      if (!this.checkRefinement("recExpr:{{ name }}")) {
+        this.cancel("Refinement on initialisation rec expr failed!");
+      }
+      {%- endif %}
     }
+    {% endfor -%}
   }
 
-  checkRefinementForRecExpr(recExprName: string) {
-    const id = `$recExpr:${recExprName}`;
-    let refinement;
-    if (this.refMap.has(id)) {
-      refinement = this.refMap.get(id);
-    }
-    return refinement === undefined || refinement();
-  }
-
-  checkRefinement(from: Role.All, label: string, to: Role.All) {
-    const id = `${from}>${label}>${to}`;
-    let refinement;
-    if (this.refMap.has(id)) {
-      refinement = this.refMap.get(id);
-    }
-    return refinement === undefined || refinement();
-  }
-
-  updateRecExprs(from: Role.All, label: string, to: Role.All) {
-    const id = `${from}>${label}>${to}`;
+  updateRecExprs(id: string) {
     console.log("update")
     if (this.recExprMap.has(id)) {
-      this.recExprMap.get(id)!()
-      // todo: check refinements
-      //this.checkRefinementForRecExpr("recExpr:currentPrice")
+      const [recExprName, recExprUpdater] = this.recExprMap.get(id)!;
+      recExprUpdater();
+      const recExprId = `recExpr:${recExprName}`
+      if (!this.checkRefinement(recExprId)) {
+        this.cancel("When updating rec expr, refinement failed.")
+      }
     }
+  }
+
+  checkRefinement(id: string) {
+    let refinement;
+    if (this.refMap.has(id)) {
+      refinement = this.refMap.get(id);
+    }
+    return refinement === undefined || refinement();
   }
 
   // ===================
@@ -300,38 +304,37 @@ class Session {
     const message = Message.serialise<Message.Channel>({ role: from, label, payload });
     const onError = (error?: Error) => {
       if (error !== undefined) {
-        
         // Only flag an error if the recipient is meant to be active,
         // and the message cannot be sent.
         if (this.activeRoles.has(to)) {
           throw new Error(`Cannot send to role: ${to}`);
         }
-
       }
     };
     this.updateVarMap(payload)
-    if (!this.checkRefinement(from, label, to)) {
+    const id = `${from}>${label}>${to}`;
+    if (!this.checkRefinement(id)) {
       this.cancel("Server-side: Refinement failed....")
     } else {
-      this.updateRecExprs(from, label, to);
+      this.updateRecExprs(id);
       this.roleToSocket[to].send(message, onError);
     }
   }
 
   receive(from: Role.Peers) {
-    return ({ data }: WebSocketMessage) => {
-      const { role, label, payload } = Message.deserialise<Message.Channel>(data);
+    return ({ data: messageData }: WebSocketMessage) => {
+      const { role, label, payload } = Message.deserialise<Message.Channel>(messageData);
       if (role !== Role.Self) {
         // Route message
         this.send(role, label, payload, from);
       } else {
-        const handler = this.handlerQueue[from].shift();
         const delayedUpdate = () => {
           this.updateVarMap(payload);
-          if (!this.checkRefinement(from, label, role)) {
+          const id = `${from}>${label}>${role}`;
+          if (!this.checkRefinement(id)) {
             this.cancel("Server-side: Refinement failed222....")
           }
-          this.updateRecExprs(from, label, role);
+          this.updateRecExprs(id);
         };
         const handler = this.handlerQueue[from].shift();
         if (handler !== undefined) {

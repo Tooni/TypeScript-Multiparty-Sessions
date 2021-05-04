@@ -15,6 +15,5 @@ class Payload(ABC):
     refinement_type: str = field(init=False)
 
     def __post_init__(self, refinement_dict):
-        print(refinement_dict)
+        # probably can delete
         self.refinement_type = Expression.from_dict(refinement_dict)
-        print(self.refinement_type)

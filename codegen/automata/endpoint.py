@@ -12,6 +12,8 @@ class Endpoint:
     other_roles: typing.Iterable[str]
     mandatory_roles: typing.Iterable[str]
     refinements: typing.Iterable[tuple[str, str]]
+    rec_expr_updates: typing.Iterable[tuple[str, str, str]]
+    rec_exprs: typing.Iterable[tuple[str, str, str, str]]
     server: str
     efsm: EFSM
     types: typing.Iterable[DataType]
