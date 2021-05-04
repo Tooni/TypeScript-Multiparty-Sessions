@@ -23,23 +23,21 @@ class Expression():
 
     @classmethod
     def find_variables_of(cls, e: typing.Union[typing.Dict, str]) -> typing.Iterable[str]:
-        def aux(result: typing.Iterable[str], e: typing.Union[typing.Dict, str]) -> typing.Iterable[str]:
-            if isinstance(e, str):
-                if e.isnumeric() or e.startswith("'"):
-                    return result
-                return result + [e]
+        if isinstance(e, str):
+            if e.isnumeric() or e.startswith("'"):
+                return []
+            return [e]
 
-            if isinstance(e, dict):
-                if "e1" in e and "e2" in e and "binop" in e:
-                    return aux(result, e["e1"]) + aux(result, e["e2"])
-                if "e" in e and "unop" in e:
-                    return aux(result, e["e"])
+        if isinstance(e, dict):
+            if "e1" in e and "e2" in e and "binop" in e:
+                with_dups = cls.find_variables_of(e["e1"]) + cls.find_variables_of(e["e2"])
+                no_dups = list(dict.fromkeys(with_dups))
+                return no_dups
+            if "e" in e and "unop" in e:
+                return cls.find_variables_of(e["e"])
 
-            raise Exception(f"Incorrectly formatted .json for finding the variables in an expression.")
+        raise Exception(f"Incorrectly formatted .json for finding the variables in an expression.")
 
-        with_dups = aux([], e)
-        no_dups = list(dict.fromkeys(with_dups))
-        return no_dups
 
     @classmethod
     def from_dict(cls, e: typing.Union[typing.Dict, str]) -> str:
