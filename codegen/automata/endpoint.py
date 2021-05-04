@@ -11,6 +11,7 @@ class Endpoint:
     role: str
     other_roles: typing.Iterable[str]
     mandatory_roles: typing.Iterable[str]
+    refinements: typing.Iterable[tuple[str, str]]
     server: str
     efsm: EFSM
     types: typing.Iterable[DataType]

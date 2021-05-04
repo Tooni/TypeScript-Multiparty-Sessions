@@ -11,7 +11,7 @@ def get_graph(filename: str, protocol: str, role: str, server: str = None) -> ty
 
     if server is None:
         server = role
-    command = ('dune', 'exec', 'nuscr', '--', f'--routed_fsm={role}@{server}@{protocol}', filename)
+    command = ('dune', 'exec', 'nuscr', '--', filename, f'--routed_fsm={role}@{server}@{protocol}')
 
     completion = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = completion.returncode

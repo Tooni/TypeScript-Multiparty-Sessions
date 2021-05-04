@@ -37,7 +37,6 @@ class Action(ABC):
             raise ValueError(f'Unsupported operation: "{edge_info["op"]}"')
 
         payloads = [Payload(**payload_info) for payload_info in edge_info['payloads']]
-        # payloads = [payload_info['sort'] for payload_info in edge_info['payloads']]
 
         # TODO: rec expr updates, silent vars
 

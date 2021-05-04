@@ -1,6 +1,8 @@
 from abc import ABC
 import typing
-from dataclasses import dataclass
+from dataclasses import dataclass, field, InitVar
+
+from codegen.automata.expressions import Expression
 
 
 @dataclass
@@ -9,5 +11,10 @@ class Payload(ABC):
 
     name: str
     sort: str
-    # might want to be Typing.dict["Refinement"] or something
-    refinement: dict
+    refinement: InitVar[dict]
+    refinement_type: str = field(init=False)
+
+    def __post_init__(self, refinement_dict):
+        print(refinement_dict)
+        self.refinement_type = Expression.from_dict(refinement_dict)
+        print(self.refinement_type)

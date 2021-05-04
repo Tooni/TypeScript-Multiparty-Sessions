@@ -3,6 +3,7 @@ import typing
 import json
 
 from codegen.automata import Endpoint, parser as automata_parser
+from codegen.automata.refinements import RefinementList
 from codegen.generator import CodeGenerator
 from codegen.utils import logger, role_parser, scribble, nuscr, type_declaration_parser
 
@@ -32,7 +33,7 @@ def parse_arguments(args: typing.List[str]) -> typing.Dict:
                         type=str, help='Output directory for generation')
 
     parser.add_argument('--prettify', dest='prettify', action='store_true',
-                        help="States that tsfmt should be used to lint/reformat the files.")
+                        help="Used by default. States that tsfmt should be used to lint/reformat the files.")
     parser.add_argument('--no-prettify', dest='prettify', action='store_false',
                         help='States that tsfmt should not be used to lint/reformat the files.')
     parser.set_defaults(prettify=True)
@@ -66,6 +67,9 @@ def main(args: typing.List[str]) -> int:
         logger.ERROR('Browser role cannot be the server role.')
         return 1
 
+    all_roles = role_parser.parse(parsed_args['filename'], parsed_args['protocol'])
+    other_roles = all_roles - set([parsed_args['role']])
+
     try:
         phase = f'Parse FSM from {scribble_filename}'
         with type_declaration_parser.parse(scribble_filename) as custom_types:
@@ -81,36 +85,36 @@ def main(args: typing.List[str]) -> int:
         logger.ERROR(error)
         return 1
 
-    output_split = output.split("mandatory:")
+    output_split = output.split("json:")
+    output_json = json.loads(output_split[1])
     dot = output_split[0]
 
-    mandatory_optional_and_json = output_split[1].split("optional:")
-    mandatory_roles = [s.strip() for s in mandatory_optional_and_json[0].split(",")]
+    mandatory_roles = output_json["mandatory"]
+    optional_roles = output_json["optional"]
+
     if server is None:
         mandatory_roles.remove(role)
     else:
         mandatory_roles.remove(server)
-    optional_and_json = mandatory_optional_and_json[1]
-    edge_json_str = optional_and_json.split('json:')[1]
-    edge_json = json.loads(edge_json_str)
+
+    edges = output_json["edges"]
+    refinements = RefinementList.from_dict(output_json["refinements"])
 
     phase = f'Parse endpoint IR from Scribble output'
     try:
-        efsm = automata_parser.from_data(dot, edge_json)
+        efsm = automata_parser.from_data(dot, edges)
         logger.SUCCESS(phase)
     except ValueError as error:
         logger.FAIL(phase)
         logger.ERROR(error)
         return 1
 
-    # TODO: do w/o reg exp
-    all_roles = role_parser.parse(parsed_args['filename'], parsed_args['protocol']) 
-    other_roles = all_roles - set([parsed_args['role']])
 
     endpoint = Endpoint(protocol=protocol,
                         role=role,
                         other_roles=other_roles,
                         mandatory_roles=mandatory_roles,
+                        refinements=refinements,
                         server=server,
                         efsm=efsm,
                         types=custom_types)

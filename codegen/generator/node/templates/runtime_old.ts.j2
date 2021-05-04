@@ -159,6 +159,10 @@ class Session {
   private activeRoles: Set<Role.Peers>;
   private messageQueue: RoleToMessageQueue;
   private handlerQueue: RoleToHandlerQueue;
+
+  private varMap: Map<string, any>;
+  private refMap: Map<string, () => boolean>;
+  private recExprMap: Map<string, () => void>;
   
   constructor(id: string,
               wss: WebSocket.Server,
@@ -171,6 +175,20 @@ class Session {
     this.roleToSocket = roleToSocket;
     this.cancellation = cancellation;
     this.initialise = initialise;
+
+    this.varMap = new Map<string, any>();
+    this.refMap = new Map<string, () => boolean>(
+      [ 
+{% for (r_id, r) in endpoint.refinements -%}
+        ["{{ r_id }}", () => {{ r }}],
+{% endfor -%}
+      ]
+    );
+    this.recExprMap = new Map<string, () => void> (
+      [
+        ["C>counter>P", () => { this.varMap.set("currentPrice", this.varMap.get("newCounterPrice")) }]
+      ]
+    );
 
     // Keep track of active participants in the session.
     this.activeRoles = new Set([{% for role in endpoint.other_roles %}Role.Peers.{{ role ~ (',' if not loop.last else '') }}{% endfor %}]);
@@ -211,6 +229,54 @@ class Session {
     this.next(initialise(this.id));
   }
 
+  // ====================
+  // Refinement functions
+  // ====================
+
+  updateVarMap(payload: any) {
+    for (const [k, v] of Object.entries(payload)) {
+      this.varMap.set(k, v);
+    }
+    this.initRecExprs();
+    console.log(this.varMap)
+  }
+
+  initRecExprs() {
+    if (!this.varMap.has("currentPrice") && this.varMap.has("initialPrice")) { // do this for every recexpr
+      this.varMap.set("currentPrice", this.varMap.get("initialPrice"))
+      // todo: check refinements
+      //this.checkRefinementForRecExpr("recExpr:currentPrice")
+    }
+  }
+
+  checkRefinementForRecExpr(recExprName: string) {
+    const id = `$recExpr:${recExprName}`;
+    let refinement;
+    if (this.refMap.has(id)) {
+      refinement = this.refMap.get(id);
+    }
+    return refinement === undefined || refinement();
+  }
+
+  checkRefinement(from: Role.All, label: string, to: Role.All) {
+    const id = `${from}>${label}>${to}`;
+    let refinement;
+    if (this.refMap.has(id)) {
+      refinement = this.refMap.get(id);
+    }
+    return refinement === undefined || refinement();
+  }
+
+  updateRecExprs(from: Role.All, label: string, to: Role.All) {
+    const id = `${from}>${label}>${to}`;
+    console.log("update")
+    if (this.recExprMap.has(id)) {
+      this.recExprMap.get(id)!()
+      // todo: check refinements
+      //this.checkRefinementForRecExpr("recExpr:currentPrice")
+    }
+  }
+
   // ===================
   // Transition function
   // ===================
@@ -243,7 +309,13 @@ class Session {
 
       }
     };
-    this.roleToSocket[to].send(message, onError);
+    this.updateVarMap(payload)
+    if (!this.checkRefinement(from, label, to)) {
+      this.cancel("Server-side: Refinement failed....")
+    } else {
+      this.updateRecExprs(from, label, to);
+      this.roleToSocket[to].send(message, onError);
+    }
   }
 
   receive(from: Role.Peers) {
@@ -254,19 +326,34 @@ class Session {
         this.send(role, label, payload, from);
       } else {
         const handler = this.handlerQueue[from].shift();
+        const delayedUpdate = () => {
+          this.updateVarMap(payload);
+          if (!this.checkRefinement(from, label, role)) {
+            this.cancel("Server-side: Refinement failed222....")
+          }
+          this.updateRecExprs(from, label, role);
+        };
+        const handler = this.handlerQueue[from].shift();
         if (handler !== undefined) {
-          handler(data);
+          delayedUpdate();
+          handler(messageData);
         } else {
-          this.messageQueue[from].push(data);
+          this.messageQueue[from].push([messageData, delayedUpdate]);
         }
       }
     }
   }
 
   registerMessageHandler(from: Role.Peers, messageHandler: MessageHandler) {
-    const message = this.messageQueue[from].shift();
-    if (message !== undefined) {
-      messageHandler(message);
+    const data = this.messageQueue[from].shift();
+    let messageData: any;
+    let delayedUpdate: (() => void) | undefined;
+    if (data !== undefined) {
+      [messageData, delayedUpdate] = data;
+    }
+    if (messageData !== undefined && delayedUpdate !== undefined) {
+      delayedUpdate();
+      messageHandler(messageData);
     } else {
       this.handlerQueue[from].push(messageHandler);
     }
