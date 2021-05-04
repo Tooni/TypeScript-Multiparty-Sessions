@@ -7,7 +7,7 @@ def parse(filename: str, protocol: str) -> typing.Set[str]:
     """Parse the roles for the specified 'protocol' found in the
     Scribble specification in the specified 'filename'."""
 
-    # TODO: get these by adding --enum flag to NuScr call in nuscr.py?
+    # TODO: get these by calling NuScr with --enum flag?? Same result but no regexp.
 
     content = Path(filename).read_text()
 

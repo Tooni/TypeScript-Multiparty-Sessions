@@ -38,7 +38,7 @@ class Action(ABC):
 
         payloads = [Payload(**payload_info) for payload_info in edge_info['payloads']]
 
-        # TODO: rec expr updates, silent vars
+        # TODO: silent vars
 
         return Constructor(role=edge_info['role'],
                            label=edge_info['label'],
