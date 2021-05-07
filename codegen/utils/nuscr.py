@@ -43,7 +43,6 @@ def get_refinement_exprs(current_role: str, edges: typing.Dict, froms: typing.Di
             ref_strs.append("(" + Expression.from_dict(r) + ")")
         ref_str = " && ".join(ref_strs)
         ident = f"{current_role}>{data['label']}>{','.join(payload_names)}>{from_state}>{data['role']}"
-        print(ident)
         if len(ref_str) > 0:
             ref_list.append((ident, ref_str))
     return ref_list
