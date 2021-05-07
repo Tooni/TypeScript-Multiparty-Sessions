@@ -53,7 +53,6 @@ def _build_test_case(*,
             exit_code = completion.returncode
             if exit_code != 0:
                 logger.FAIL(phase)
-                input()
 
                 if completion.stdout:
                     logger.ERROR('stdout', completion.stdout)
