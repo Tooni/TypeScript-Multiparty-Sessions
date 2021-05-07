@@ -90,7 +90,7 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
 
     this.state = {
       elem: props.waiting,
-      state: {%- if endpoint.efsm.is_send_state(endpoint.efsm.initial_state) -%}
+      state: {% if endpoint.efsm.is_send_state(endpoint.efsm.initial_state) -%}
       SendState.S{{ endpoint.efsm.initial_state }}
       {% elif endpoint.efsm.is_receive_state(endpoint.efsm.initial_state) -%}
       ReceiveState.S{{ endpoint.efsm.initial_state }}
@@ -287,8 +287,8 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
   // ===============
 
   private sendMessage(role: Roles.Peers, label: string, payload: any, successor: State) {
-    // Cut "S" from state, as server runtime won't expect it
-    const fromState = this.state.state.substring(1);
+    // Have to call toString() because one of SendState or ReceiveState could be empty
+    const fromState = this.state.state.toString();
     const jsonString = JSON.stringify(Message.toChannel(role, label, payload, fromState));
     this.props.ws.send(jsonString);
     this.advance(successor);

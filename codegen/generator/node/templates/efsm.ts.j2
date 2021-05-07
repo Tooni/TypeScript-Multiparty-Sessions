@@ -113,7 +113,7 @@ export namespace State
 
     performSend(next: StateTransitionHandler, cancel: Cancellation, send: SendStateHandler) {
       const thunk = ([label, payload, successor, role]: FromPromise<Handler.S{{ state }}>) => {
-        send(role, label, payload, "{{ state }}");
+        send(role, label, payload, S{{ state }}.name);
         return next(successor);
       };
 
