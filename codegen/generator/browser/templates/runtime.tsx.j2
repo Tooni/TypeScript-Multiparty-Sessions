@@ -52,6 +52,7 @@ type Transport = {
 
 type ComponentState = {
   elem: React.ReactNode
+  state: State
 };
 
 export default class Session extends React.Component<Props, Partial<Transport>> {
@@ -89,6 +90,13 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
 
     this.state = {
       elem: props.waiting,
+      state: {%- if endpoint.efsm.is_send_state(endpoint.efsm.initial_state) -%}
+      SendState.S{{ endpoint.efsm.initial_state }}
+      {% elif endpoint.efsm.is_receive_state(endpoint.efsm.initial_state) -%}
+      ReceiveState.S{{ endpoint.efsm.initial_state }}
+      {% else -%}
+      TerminalState.S{{ endpoint.efsm.initial_state }}
+      {%- endif %}
     };
 
     // Set up message and handler queues
@@ -180,7 +188,8 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
     if (isSendState(state)) {
       const View = this.props.states[state];
       this.setState({
-        elem: <View factory={this.buildSendElement} />
+        elem: <View factory={this.buildSendElement} />,
+        state: state
       });
 
       return;
@@ -191,7 +200,8 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
     if (isReceiveState(state)) {
       const View = this.props.states[state];
       this.setState({
-        elem: <View register={this.registerReceiveHandler} />
+        elem: <View register={this.registerReceiveHandler} />,
+        state: state
       });
 
       return;
@@ -202,7 +212,8 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
     if (isTerminalState(state)) {
       const View = this.props.states[state];
       this.setState({
-        elem: <View terminate={this.terminate} />
+        elem: <View terminate={this.terminate} />,
+        state: state
       });
 
       return;
@@ -276,7 +287,9 @@ class {{ endpoint.role }} extends React.Component<Props & Transport, ComponentSt
   // ===============
 
   private sendMessage(role: Roles.Peers, label: string, payload: any, successor: State) {
-    const jsonString = JSON.stringify(Message.toChannel(role, label, payload));
+    // Cut "S" from state, as server runtime won't expect it
+    const fromState = this.state.state.substring(1);
+    const jsonString = JSON.stringify(Message.toChannel(role, label, payload, fromState));
     this.props.ws.send(jsonString);
     this.advance(successor);
   }

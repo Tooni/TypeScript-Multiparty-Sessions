@@ -60,6 +60,7 @@ export namespace Message
     role: Role.All;
     label: string;
     payload: any;
+    fromState: string;
   };
 
   export const serialise = <T> (obj: T) => JSON.stringify(obj);
@@ -112,7 +113,7 @@ export namespace State
 
     performSend(next: StateTransitionHandler, cancel: Cancellation, send: SendStateHandler) {
       const thunk = ([label, payload, successor, role]: FromPromise<Handler.S{{ state }}>) => {
-        send(role, label, payload);
+        send(role, label, payload, "{{ state }}");
         return next(successor);
       };
 

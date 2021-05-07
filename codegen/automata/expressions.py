@@ -19,7 +19,8 @@ class Unop():
 
 
 class Expression():
-    """An expression in the EFSM -- usually a refinement type"""
+    """An expression in the EFSM -- usually a refinement type,
+    but may also be the update of a recursive expression."""
 
     @classmethod
     def find_variables_of(cls, e: typing.Union[typing.Dict, str]) -> typing.Iterable[str]:
@@ -37,7 +38,6 @@ class Expression():
                 return cls.find_variables_of(e["e"])
 
         raise Exception(f"Incorrectly formatted .json for finding the variables in an expression.")
-
 
     @classmethod
     def from_dict(cls, e: typing.Union[typing.Dict, str]) -> str:

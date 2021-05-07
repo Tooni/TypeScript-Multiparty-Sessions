@@ -92,14 +92,15 @@ def main(args: typing.List[str]) -> int:
         mandatory_roles.remove(server)
 
     edges = output_json["edges"]
+    froms = output_json["froms"]
     rec_exprs = output_json["rec_exprs"]
     rec_exprs_info = nuscr.get_rec_expr_info(rec_exprs)
 
     refinement_list = []
     rec_expr_update_list = []
     if server is None:
-        refinement_list = nuscr.get_refinement_exprs(role, edges)
-        rec_expr_update_list = nuscr.get_rec_exprs_updates(role, edges)
+        refinement_list = nuscr.get_refinement_exprs(role, edges, froms)
+        rec_expr_update_list = nuscr.get_rec_exprs_updates(role, edges, froms)
         for other_role in other_roles:
             phase = f'Parse FSM from {scribble_filename} for browser role {other_role}, for its annotations and rec exprs'
             try:
@@ -112,8 +113,9 @@ def main(args: typing.List[str]) -> int:
                     browser_output_split = browser_output.split("json:")
                     browser_output_json = json.loads(browser_output_split[1])
                     browser_edges = browser_output_json["edges"]
-                    refinement_list += nuscr.get_refinement_exprs(other_role, browser_edges)
-                    rec_expr_update_list += nuscr.get_rec_exprs_updates(other_role, browser_edges)
+                    browser_froms = browser_output_json["froms"]
+                    refinement_list += nuscr.get_refinement_exprs(other_role, browser_edges, browser_froms)
+                    rec_expr_update_list += nuscr.get_rec_exprs_updates(other_role, browser_edges, browser_froms)
                     logger.SUCCESS(phase)
             except (OSError, ValueError) as error:
                 logger.ERROR(error)

@@ -16,7 +16,7 @@ import {
 type StateInitialiser<SessionID> = (sessionID: SessionID) => State.S{{ endpoint.efsm.initial_state }};
 
 export type StateTransitionHandler = (state: State.Type) => void;
-export type SendStateHandler = (role: Role.Peers, label: string, payload: any) => void;
+export type SendStateHandler = (role: Role.Peers, label: string, payload: any, fromState: string) => void;
 export type MessageHandler = (payload: any) => void;
 export type ReceiveStateHandler = (from: Role.Peers, messageHandler: MessageHandler) => void;
 
@@ -259,6 +259,7 @@ class Session {
       {%- endif %}
     }
     {% endfor -%}
+    // what to do when initialising one rec expr means another one should be initialised too??
   }
 
   updateRecExprs(id: string) {
@@ -300,8 +301,8 @@ class Session {
   // Channel methods
   // ===============
 
-  send(to: Role.Peers, label: string, payload: any, from: Role.All = Role.Self) {
-    const message = Message.serialise<Message.Channel>({ role: from, label, payload });
+  send(to: Role.Peers, label: string, payload: any, fromState: string, from: Role.All = Role.Self) {
+    const message = Message.serialise<Message.Channel>({ role: from, label, payload, fromState });
     const onError = (error?: Error) => {
       if (error !== undefined) {
         // Only flag an error if the recipient is meant to be active,
@@ -312,7 +313,8 @@ class Session {
       }
     };
     this.updateVarMap(payload)
-    const id = `${from}>${label}>${to}`;
+    const payloadKeys = Object.keys(payload).join(",");
+    const id = `${from}>${label}>${payloadKeys}>${fromState}>${to}`;
     if (!this.checkRefinement(id)) {
       this.cancel("Server-side: Refinement failed....")
     } else {
@@ -323,14 +325,15 @@ class Session {
 
   receive(from: Role.Peers) {
     return ({ data: messageData }: WebSocketMessage) => {
-      const { role, label, payload } = Message.deserialise<Message.Channel>(messageData);
+      const { role, label, payload, fromState } = Message.deserialise<Message.Channel>(messageData);
       if (role !== Role.Self) {
         // Route message
         this.send(role, label, payload, from);
       } else {
         const delayedUpdate = () => {
           this.updateVarMap(payload);
-          const id = `${from}>${label}>${role}`;
+          const payloadKeys = Object.keys(payload).join(",");
+          const id = `${from}>${label}>${payloadKeys}>${fromState}>${role}`;
           if (!this.checkRefinement(id)) {
             this.cancel("Server-side: Refinement failed222....")
           }
