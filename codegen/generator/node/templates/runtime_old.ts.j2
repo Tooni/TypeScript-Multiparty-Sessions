@@ -328,7 +328,7 @@ class Session {
       const { role, label, payload, fromState } = Message.deserialise<Message.Channel>(messageData);
       if (role !== Role.Self) {
         // Route message
-        this.send(role, label, payload, from);
+        this.send(role, label, payload, fromState, from);
       } else {
         const delayedUpdate = () => {
           this.updateVarMap(payload);

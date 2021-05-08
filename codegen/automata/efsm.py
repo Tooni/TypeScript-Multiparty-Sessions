@@ -146,7 +146,7 @@ class EFSM:
         Throws an exception if there is no terminal state."""
 
         if self._terminal_state_id is None:
-            raise Exception(f'Trying to access non-existent terminal state')
+            raise Exception(f'Trying to access non-existent terminal state. There must be a terminal state.')
 
         return self[self._terminal_state_id]
 
