@@ -105,7 +105,7 @@ def main(args: typing.List[str]) -> int:
             phase = f'Parse FSM from {scribble_filename} for browser role {other_role}, for its annotations and rec exprs'
             try:
                 with type_declaration_parser.parse(scribble_filename) as custom_types:
-                    exit_code, browser_output = nuscr.get_graph(scribble_filename, protocol, other_role, server)
+                    exit_code, browser_output = nuscr.get_graph(scribble_filename, protocol, other_role, server=role)
                     if exit_code != 0:
                         logger.FAIL(phase)
                         logger.ERROR(browser_output)
