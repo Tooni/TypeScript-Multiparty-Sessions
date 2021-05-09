@@ -1,4 +1,4 @@
-module MultipartyWithRouting;
+(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
 
 global protocol TwoBuyer(role BuyerA, role BuyerB, role Seller) {
 

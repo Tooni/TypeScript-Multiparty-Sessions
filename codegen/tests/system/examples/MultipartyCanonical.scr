@@ -1,4 +1,4 @@
-module MultipartyCanonical;
+(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
 
 global protocol Ring(role Alice, role Bob, role Carol) {
 

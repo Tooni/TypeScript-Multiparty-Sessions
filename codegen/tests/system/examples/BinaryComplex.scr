@@ -1,4 +1,4 @@
-module BinaryComplex;
+(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
 
 global protocol Calculator(role Client, role Svr) {
 

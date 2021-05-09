@@ -1,4 +1,4 @@
-module BinarySimple;
+(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
 
 global protocol Greeting(role Alice, role Bob) {
 

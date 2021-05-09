@@ -4,7 +4,7 @@ import json
 
 from codegen.automata import Endpoint, parser as automata_parser
 from codegen.generator import CodeGenerator
-from codegen.utils import logger, role_parser, scribble, nuscr, type_declaration_parser
+from codegen.utils import logger, role_parser, scribble, nuscr, type_declaration_parser, pragma_parser
 
 
 def parse_arguments(args: typing.List[str]) -> typing.Dict:
@@ -63,8 +63,14 @@ def main(args: typing.List[str]) -> int:
         logger.ERROR('Browser role cannot be the server role.')
         return 1
 
-    all_roles = role_parser.parse(parsed_args['filename'], parsed_args['protocol'])
-    other_roles = all_roles - set([parsed_args['role']])
+    missing_pragmas = pragma_parser.find_missing_pragmas(scribble_filename)
+    if len(missing_pragmas) != 0:
+        logger.ERROR(f"{scribble_filename} was missing the following pragmas: {missing_pragmas}")
+        logger.INFO("Try adding them at the top of the file with: (*# CheckDirectedChoiceDisabled, RefinementTypes #*)")
+        return 1
+
+    all_roles = role_parser.parse(scribble_filename, protocol)
+    other_roles = all_roles - set([role])
 
     try:
         phase = f'Parse FSM from {scribble_filename}'
@@ -73,6 +79,7 @@ def main(args: typing.List[str]) -> int:
             if exit_code != 0:
                 logger.FAIL(phase)
                 logger.ERROR(output)
+                logger.INFO("You may need to remove 'module' lines, e.g. 'module Calculator;'.")
                 return exit_code
             logger.SUCCESS(phase)
     except (OSError, ValueError) as error:
