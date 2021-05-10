@@ -48,17 +48,22 @@ def get_refinement_exprs(current_role: str, edges: typing.Dict, froms: typing.Di
     return ref_list
 
 
-def get_rec_exprs_updates(current_role: str, edges: typing.Dict, froms: typing.Dict) -> typing.Iterable[tuple[str, str, str]]:
+def get_rec_exprs_updates(rec_expr_info: typing.Iterable[tuple[str, str, str, str, str]], current_role: str, edges: typing.Dict, froms: typing.Dict) -> typing.Iterable[tuple[str, str, str, typing.Iterable[str]]]:
     """From νScr's output's .json's edges, get the recursive expression updates of a given role.
     Returns a list of the edges' IDs (for the server runtime),
     the expression being updated, and the way it is updated."""
+
+    tv_to_rec_expr_name = dict()
+    for rec_expr_name, _, _, _, typevar in rec_expr_info:
+        tv_to_rec_expr_name[typevar] = rec_expr_name
 
     rec_expr_list = []
     for edge_id, data in edges.items():
         from_state = froms[edge_id]
         rec_expr_updates = data["rec_expr_updates"]
+        tv_resets = data["tv_resets"]
         # Don't look at receives, otherwise every refinement will be doubled
-        if not rec_expr_updates or data["op"] == "?":
+        if not rec_expr_updates and not tv_resets or data["op"] == "?":
             continue
         rec_strs = []
         payload_names = []
@@ -70,12 +75,13 @@ def get_rec_exprs_updates(current_role: str, edges: typing.Dict, froms: typing.D
         if len(rec_strs) > 1:
             raise Exception(f"Can't update more than one rec expression at a time.")
         ident = f"{current_role}>{data['label']}>{','.join(payload_names)}>{from_state}>{data['role']}"
-        rec_name, update_str = rec_strs[0]
-        rec_expr_list.append((ident, rec_name, update_str))
+        rec_name, update_str = rec_strs[0] if len(rec_strs) > 0 else ("", "")
+        rec_expr_resets = [tv_to_rec_expr_name[reset] for reset in tv_resets]
+        rec_expr_list.append((ident, rec_name, update_str, rec_expr_resets))
     return rec_expr_list
 
 
-def get_rec_expr_info(rec_expr_info: typing.Dict) -> typing.Iterable[tuple[str, str, str, str]]:
+def get_rec_expr_info(rec_expr_info: typing.Dict) -> typing.Iterable[tuple[str, str, str, str, str]]:
     """Parse the recursive expression metadata of νScr's output's .json.
     Returns a list of the expression names, initialisations, variables involved, and refinements"""
 
@@ -83,6 +89,7 @@ def get_rec_expr_info(rec_expr_info: typing.Dict) -> typing.Iterable[tuple[str, 
     for rec_expr_name, info in rec_expr_info.items():
         init = info["init"]
         refinement = info["refinement"]
+        typevar = info["typevar"]
         refinement_str = ""
         if len(refinement) != 0:
             refinement_str = Expression.from_dict(refinement)
@@ -92,7 +99,7 @@ def get_rec_expr_info(rec_expr_info: typing.Dict) -> typing.Iterable[tuple[str, 
         if len(variables) > 0:
             with_varmap = [f"this.varMap.has('{v}')" for v in variables]
             vars_str = " && (" + " && ".join(with_varmap) + ")"
-        info_list.append((rec_expr_name, init_str, vars_str, refinement_str))
+        info_list.append((rec_expr_name, init_str, vars_str, refinement_str, typevar))
     return info_list
 
 # TODO?

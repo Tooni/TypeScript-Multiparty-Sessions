@@ -80,14 +80,18 @@ export default abstract class S{{ state }}<ComponentState = {}> extends React.Co
     switch (parsedMessage.label) {
       {% for action in state.actions -%}
       case Labels.{{ action.label }}: {
-        const thunk = () =>
-          {%- if endpoint.efsm.is_send_state(action.succ) %}
+        const thunk = () => {{ '{' }}
+          {%- if action.succ.id == state.id %}
+          this.props.register(Roles.Peers.{{ state.first_role }}, this.handle.bind(this));
+          {%- endif %}
+          return {% if endpoint.efsm.is_send_state(action.succ) -%}
           SendState
-          {%- elif endpoint.efsm.is_receive_state(action.succ) %}
+          {%- elif endpoint.efsm.is_receive_state(action.succ) -%}
           ReceiveState
-          {%- else %}
+          {%- else -%}
           TerminalState{%- endif -%}
-          .S{{ action.succ }}
+          .S{{ action.succ }};
+        {{ '}' }}
 
         const continuation = this.{{ action.label }}({% if action.payloads|length > 0 %}parsedMessage.payload{% endif %});
         if (continuation instanceof Promise) {

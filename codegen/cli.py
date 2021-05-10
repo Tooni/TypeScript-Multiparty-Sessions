@@ -107,7 +107,7 @@ def main(args: typing.List[str]) -> int:
     rec_expr_update_list = []
     if server is None:
         refinement_list = nuscr.get_refinement_exprs(role, edges, froms)
-        rec_expr_update_list = nuscr.get_rec_exprs_updates(role, edges, froms)
+        rec_expr_update_list = nuscr.get_rec_exprs_updates(rec_exprs_info, role, edges, froms)
         for other_role in other_roles:
             phase = f'Parse FSM from {scribble_filename} for browser role {other_role}, for its annotations and rec exprs'
             try:
@@ -122,7 +122,7 @@ def main(args: typing.List[str]) -> int:
                     browser_edges = browser_output_json["edges"]
                     browser_froms = browser_output_json["froms"]
                     refinement_list += nuscr.get_refinement_exprs(other_role, browser_edges, browser_froms)
-                    rec_expr_update_list += nuscr.get_rec_exprs_updates(other_role, browser_edges, browser_froms)
+                    rec_expr_update_list += nuscr.get_rec_exprs_updates(rec_exprs_info, other_role, browser_edges, browser_froms)
                     logger.SUCCESS(phase)
             except (OSError, ValueError) as error:
                 logger.ERROR(error)

@@ -182,7 +182,7 @@ class Session {
 {% for (ident, ref) in endpoint.refinements -%}
         ["{{ ident }}", () => {{ ref }}],
 {% endfor -%}
-{%- for (name, init, variables, ref) in endpoint.rec_exprs -%}
+{%- for (name, init, variables, ref, typevar) in endpoint.rec_exprs -%}
 {%- if ref|length > 0 %}
         ["recExpr:{{ name }}", () => {{ ref }}],
 {%- endif %}
@@ -191,8 +191,15 @@ class Session {
     );
     this.recExprMap = new Map<string, [string, () => void]> (
       [
-{% for (ident, name, update) in endpoint.rec_expr_updates -%}
-        ["{{ ident }}", ["{{ name }}", () => { this.varMap.set("{{ name }}", {{ update }}) }]],
+{% for (ident, name, update, resets) in endpoint.rec_expr_updates -%}
+        ["{{ ident }}", ["{{ name }}", () => {{ '{' }}
+          {% if name != "" and update != "" %}
+          this.varMap.set("{{ name }}", {{ update }}); 
+          {% endif %}
+          {% for reset in resets -%}
+          this.varMap.delete("{{ reset }}");
+          {% endfor -%}
+        {{ '}' }}]],
 {% endfor -%}
       ]
     );
@@ -249,7 +256,7 @@ class Session {
   }
 
   initRecExprs() {
-    {% for (name, init, variables, ref) in endpoint.rec_exprs -%}
+    {% for (name, init, variables, ref, typevar) in endpoint.rec_exprs -%}
     if (!this.varMap.has("{{ name }}"){{ variables }}) {
       this.varMap.set("{{ name }}", {{ init }});
       {%- if ref|length > 0 %}
@@ -267,6 +274,9 @@ class Session {
     if (this.recExprMap.has(id)) {
       const [recExprName, recExprUpdater] = this.recExprMap.get(id)!;
       recExprUpdater();
+      if (recExprName === "") {
+        return;
+      }
       const recExprId = `recExpr:${recExprName}`
       if (!this.checkRefinement(recExprId)) {
         this.cancel("When updating rec expr, refinement failed.")
