@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 import typing
 
-_REQUIRED_PRAGMAS = set(("CheckDirectedChoiceDisabled", "RefinementTypes"))
+_REQUIRED_PRAGMAS = set(("CheckDirectedChoiceDisabled", "RefinementTypes",
+                         "ValidateRefinementProgress", "ValidateRefinementSatisfiability"))
 
 
 def find_missing_pragmas(filename: str) -> typing.Iterable[str]:
