@@ -22,6 +22,8 @@ jobs:
         node-version: 14.16.1
     - name: Install OCaml dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get install z3 m4 -y
         git submodule init
         git submodule update --remote nuscr
         cd nuscr
