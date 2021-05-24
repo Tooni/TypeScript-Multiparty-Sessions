@@ -1,0 +1,19 @@
+(*# CheckDirectedChoiceDisabled, ValidateRefinementProgress, RefinementTypes, ValidateRefinementSatisfiability, ValidateRefinementSatisfiability #*)
+
+global protocol TravelFlattened(role Customer, role Agency, role Service) {
+	rec Loop {
+		choice at Customer {
+			query(string) from Customer to Agency;
+			quote(int) from Agency to Customer;
+			continue Loop;
+		} or {
+			choice at Customer {
+				pay(string) from Customer to Service;
+				confirm(int) from Service to Customer;
+				accpt(int) from Customer to Agency;
+			} or {
+				reject() from Customer to Agency;
+			}
+		}
+	}
+}

@@ -50,6 +50,36 @@
                     "clients": ["BuyerA", "BuyerB"]
                 }
             ]
+        },
+        {
+            "filename": "RefinementsWithNoDirectedChoice.scr",
+            "protocols": [
+                {
+                    "identifier": "OnlineWallet",
+                    "server": "Wallet",
+                    "clients": ["Customer", "Vendor"]
+                }
+            ]
+        },
+        {
+            "filename": "NoDirectedChoice.scr",
+            "protocols": [
+                {
+                    "identifier": "TravelFlattened",
+                    "server": "Agency",
+                    "clients": ["Customer", "Service"]
+                }
+            ]
+        },
+        {
+            "filename": "RecursiveExpression.scr",
+            "protocols": [
+                {
+                    "identifier": "Contract",
+                    "server": "PawnShop",
+                    "clients": ["Customer"]
+                }
+            ]
         }
     ]
 }

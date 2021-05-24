@@ -1,0 +1,24 @@
+(*# CheckDirectedChoiceDisabled, ValidateRefinementProgress, RefinementTypes, ValidateRefinementSatisfiability, ValidateRefinementSatisfiability #*)
+
+global protocol Contract(role Customer, role PawnShop) {
+	propose(initialPrice: int) from Customer to PawnShop;
+	rec Loop [currentPrice<Customer, PawnShop>: int = initialPrice] {
+		choice at PawnShop {
+			accept(confirmedPrice: int{confirmedPrice = currentPrice}) from PawnShop to Customer;
+			confirm() from Customer to PawnShop;
+		} or {
+			counter(counterPrice: int{counterPrice <> currentPrice}) from PawnShop to Customer;
+			choice at Customer {
+				accept(confirmedPrice: int{confirmedPrice = counterPrice}) from Customer to PawnShop;
+				confirm() from PawnShop to Customer;
+			} or {
+				counter(newCounterPrice: int{counterPrice <> newCounterPrice}) from Customer to PawnShop;
+				continue Loop [newCounterPrice];
+			} or {
+				reject() from Customer to PawnShop;
+			}
+		} or {
+			reject() from PawnShop to Customer;
+		}
+	}
+}
