@@ -1,4 +1,4 @@
-(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
+(*# CheckDirectedChoiceDisabled, RefinementTypes, ValidateRefinementSatisfiability, ValidateRefinementProgress, ValidateRefinementSatisfiability #*)
 
 global protocol Greeting(role Alice, role Bob) {
 

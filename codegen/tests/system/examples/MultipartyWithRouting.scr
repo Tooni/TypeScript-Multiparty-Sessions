@@ -1,4 +1,4 @@
-(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
+(*# CheckDirectedChoiceDisabled, ValidateRefinementProgress, RefinementTypes, ValidateRefinementSatisfiability, ValidateRefinementSatisfiability #*)
 
 global protocol TwoBuyer(role BuyerA, role BuyerB, role Seller) {
 

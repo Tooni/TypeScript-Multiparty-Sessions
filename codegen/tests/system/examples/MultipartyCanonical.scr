@@ -1,4 +1,4 @@
-(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
+(*# CheckDirectedChoiceDisabled, RefinementTypes, ValidateRefinementProgress, ValidateRefinementSatisfiability, ValidateRefinementSatisfiability #*)
 
 global protocol Ring(role Alice, role Bob, role Carol) {
 

@@ -1,4 +1,4 @@
-(*# RefinementTypes, CheckDirectedChoiceDisabled #*)
+(*# ValidateRefinementProgress, CheckDirectedChoiceDisabled, RefinementTypes, ValidateRefinementSatisfiability, ValidateRefinementSatisfiability #*)
 
 global protocol Calculator(role Client, role Svr) {
 

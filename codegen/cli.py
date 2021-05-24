@@ -67,7 +67,7 @@ def main(args: typing.List[str]) -> int:
     if len(missing_pragmas) != 0:
         logger.ERROR(f"{scribble_filename} was missing the following pragmas: {missing_pragmas}")
         logger.INFO("Try adding them at the top of the file with: " +
-                    "(*# CheckDirectedChoiceDisabled, RefinementTypes, " +
+                    "(*# CheckDirectedChoiceDisabled, RefinementTypes, ValidateRefinementProgress, " +
                     "ValidateRefinementSatisfiability, ValidateRefinementSatisfiability #*)")
         return 1
 
