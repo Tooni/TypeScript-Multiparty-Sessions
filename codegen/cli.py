@@ -74,6 +74,10 @@ def main(args: typing.List[str]) -> int:
     all_roles = role_parser.parse(scribble_filename, protocol)
     other_roles = all_roles - set([role])
 
+    if role not in all_roles:
+        logger.ERROR(f"Could not find role {role} in protocol {protocol} of {scribble_filename}")
+        return 1
+
     try:
         phase = f'Parse FSM from {scribble_filename}'
         with type_declaration_parser.parse(scribble_filename) as custom_types:
