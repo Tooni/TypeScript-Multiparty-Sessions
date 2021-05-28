@@ -165,10 +165,10 @@ class Session {
                 ["Svr>lose>ignore5>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
                 ["Svr>win>ignore4>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
                 ["Svr>lose>ignore3>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
-                ["FO2>finishedPicking>ignore2>S6>Svr", () => (this.varMap.get('numPicks2') > 0)],
-                ["FO1>finishedPicking>ignore1>S3>Svr", () => (this.varMap.get('numPicks1') > 0)],
                 ["SM1>clue>clue,numAgents>S1>FO1", () => (this.varMap.get('numAgents') >= 0 && this.varMap.get('numAgents') <= this.varMap.get('numCodenames'))],
+                ["FO2>finishedPicking>ignore2>S6>Svr", () => (this.varMap.get('numPicks2') > 0)],
                 ["SM2>clue>clue2,numAgents2>S5>FO2", () => (this.varMap.get('numAgents2') >= 0 && this.varMap.get('numAgents2') <= this.varMap.get('numCodenames'))],
+                ["FO1>finishedPicking>ignore1>S3>Svr", () => (this.varMap.get('numPicks1') > 0)],
 
 
 
@@ -211,15 +211,15 @@ class Session {
 
         // Initialise queues for receiving.
         this.messageQueue = {
-            [Role.Peers.FO2]: [], [Role.Peers.FO1]: [], [Role.Peers.SM1]: [], [Role.Peers.SM2]: [],
+            [Role.Peers.SM1]: [], [Role.Peers.FO2]: [], [Role.Peers.SM2]: [], [Role.Peers.FO1]: [],
         };
 
         this.handlerQueue = {
-            [Role.Peers.FO2]: [], [Role.Peers.FO1]: [], [Role.Peers.SM1]: [], [Role.Peers.SM2]: [],
+            [Role.Peers.SM1]: [], [Role.Peers.FO2]: [], [Role.Peers.SM2]: [], [Role.Peers.FO1]: [],
         };
 
         this.sendQueue = {
-            [Role.Peers.FO2]: [], [Role.Peers.FO1]: [], [Role.Peers.SM1]: [], [Role.Peers.SM2]: [],
+            [Role.Peers.SM1]: [], [Role.Peers.FO2]: [], [Role.Peers.SM2]: [], [Role.Peers.FO1]: [],
         };
 
         this.next(initialise(this.id));
@@ -277,7 +277,6 @@ class Session {
             this.varMap.set(k, v);
         }
         this.initRecExprs();
-        console.log(this.varMap)
     }
 
     initRecExprs() {
@@ -290,14 +289,12 @@ class Session {
         if (!this.varMap.has("numCodenames")) {
             this.varMap.set("numCodenames", 25);
             if (!this.checkRefinement("recExpr:numCodenames")) {
-                this.cancel("Refinement on initialisation rec expr failed!");
+                this.cancel(`The refinement on recursive expression numCodenames failed during initialisation.`);
             }
         }
-        // what to do when initialising one rec expr means another one should be initialised too??
     }
 
     updateRecExprs(id: string) {
-        console.log("update")
         if (this.recExprMap.has(id)) {
             const [recExprName, recExprUpdater] = this.recExprMap.get(id)!;
             recExprUpdater();
@@ -306,7 +303,7 @@ class Session {
             }
             const recExprId = `recExpr:${recExprName}`
             if (!this.checkRefinement(recExprId)) {
-                this.cancel("When updating rec expr, refinement failed.")
+                this.cancel(`The refinement on recursive expression ${recExprName} failed when updating.`)
             }
         }
     }
@@ -359,7 +356,7 @@ class Session {
             const payloadKeys = Object.keys(payload).join(",");
             const id = `${role}>${label}>${payloadKeys}>${fromState}>${to}`;
             if (!this.checkRefinement(id)) {
-                this.cancel("Server-side: Refinement failed....")
+                this.cancel(`The refinement on the interaction ${id} failed`);
             } else {
                 this.updateRecExprs(id);
                 const messageStr = Message.serialise<Message.Channel>(message);
@@ -386,7 +383,7 @@ class Session {
                     const payloadKeys = Object.keys(payload).join(",");
                     const id = `${from}>${label}>${payloadKeys}>${fromState}>${role}`;
                     if (!this.checkRefinement(id)) {
-                        this.cancel("Server-side: Refinement failed222....")
+                        this.cancel(`The refinement on the interaction ${id} failed`);
                     }
                     this.updateRecExprs(id);
                 };

@@ -274,7 +274,6 @@ class Session {
       this.varMap.set(k, v);
     }
     this.initRecExprs();
-    console.log(this.varMap)
   }
 
   initRecExprs() {
@@ -283,16 +282,14 @@ class Session {
       this.varMap.set("{{ name }}", {{ init }});
       {%- if ref|length > 0 %}
       if (!this.checkRefinement("recExpr:{{ name }}")) {
-        this.cancel("Refinement on initialisation rec expr failed!");
+        this.cancel(`The refinement on recursive expression {{ name }} failed during initialisation.`);
       }
       {%- endif %}
     }
     {% endfor -%}
-    // what to do when initialising one rec expr means another one should be initialised too??
   }
 
   updateRecExprs(id: string) {
-    console.log("update")
     if (this.recExprMap.has(id)) {
       const [recExprName, recExprUpdater] = this.recExprMap.get(id)!;
       recExprUpdater();
@@ -301,7 +298,7 @@ class Session {
       }
       const recExprId = `recExpr:${recExprName}`
       if (!this.checkRefinement(recExprId)) {
-        this.cancel("When updating rec expr, refinement failed.")
+        this.cancel(`The refinement on recursive expression ${recExprName} failed when updating.`)
       }
     }
   }
@@ -354,7 +351,7 @@ class Session {
           const payloadKeys = Object.keys(payload).join(",");
           const id = `${role}>${label}>${payloadKeys}>${fromState}>${to}`;
           if (!this.checkRefinement(id)) {
-              this.cancel("Server-side: Refinement failed....")
+              this.cancel(`The refinement on the interaction ${id} failed`);
           } else {
               this.updateRecExprs(id);
               const messageStr = Message.serialise<Message.Channel>(message);
@@ -381,7 +378,7 @@ class Session {
           const payloadKeys = Object.keys(payload).join(",");
           const id = `${from}>${label}>${payloadKeys}>${fromState}>${role}`;
           if (!this.checkRefinement(id)) {
-            this.cancel("Server-side: Refinement failed222....")
+            this.cancel(`The refinement on the interaction ${id} failed`);
           }
           this.updateRecExprs(id);
         };
