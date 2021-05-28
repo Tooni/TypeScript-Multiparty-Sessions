@@ -34,8 +34,6 @@ interface WebSocketMessage {
     target: WebSocket
 };
 
-type ConnectionContext = [Set<Role.Peers>, Partial<RoleToSocket>, Map<WebSocket, Role.Peers>];
-
 // ================
 // Connection Phase
 // ================
@@ -50,28 +48,22 @@ namespace Connect {
     };
 };
 
-// Factory function to create a new connection context to keep track
-// of pending connections before instantiating a session.
-const makeNewContext = (): ConnectionContext => {
-    // Keep track of participants that have yet to join.
-    const waiting: Set<Role.Peers> = new Set([Role.Peers.FO1, Role.Peers.SM2, Role.Peers.SM1, Role.Peers.FO2]);
-
-    // Keep track of mapping between role and WebSocket.
-    const roleToSocket: Partial<RoleToSocket> = {
-        [Role.Peers.FO1]: undefined, [Role.Peers.SM2]: undefined, [Role.Peers.SM1]: undefined, [Role.Peers.FO2]: undefined,
-    };
-    const socketToRole = new Map<WebSocket, Role.Peers>();
-
-    return [waiting, roleToSocket, socketToRole];
-};
-
 export class Svr {
     constructor(wss: WebSocket.Server,
         cancellation: Cancellation.Handler<string>,
         initialise: StateInitialiser<string>,
         generateID: () => string = uuidv1) {
-        let connectionContexts: ConnectionContext[] = [
-            makeNewContext(),
+        let connectionContexts: Session[];
+
+        let removeSession = (s: Session) => {
+            const sIndex = connectionContexts.indexOf(s);
+            if (sIndex > -1) {
+                connectionContexts.splice(sIndex, 1);
+            }
+        }
+
+        connectionContexts = [
+            new Session(generateID(), cancellation, initialise, removeSession)
         ];
 
         // Handle explicit cancellation during the join phase.
@@ -79,10 +71,11 @@ export class Svr {
             socket.removeAllListeners();
 
             // Wait for the role again - guaranteed to occur in map by construction.
-            for (const [waiting, _, socketToRole] of connectionContexts) {
-                const role = socketToRole.get(socket);
+            for (const session of connectionContexts) {
+                const role = session.getRoleFromSocket(socket);
                 if (role !== undefined) {
-                    waiting.add(role);
+                    // Might need to check if role is optional? todo
+                    session.startWaitingFor(role);
                     return;
                 }
             }
@@ -93,43 +86,33 @@ export class Svr {
             const { data, target: socket } = event;
             const { connect: role } = Message.deserialise<Connect.Request>(data);
 
-            for (let i = 0; i < connectionContexts.length; ++i) {
-                const [waiting, roleToSocket, socketToRole] = connectionContexts[i];
-                if (waiting.has(role)) {
-                    // Update role-WebSocket mapping.
-                    roleToSocket[role] = socket;
-                    socketToRole.set(socket, role);
-                    waiting.delete(role);
+            for (let i = 0; i < connectionContexts.length; i++) {
+                const session = connectionContexts[i];
+                if (session.isWaitingFor(role)) {
+                    session.stopWaitingFor(role);
+                    session.addRole(role, socket);
 
-                    if (waiting.size === 0) {
-                        connectionContexts = connectionContexts.filter((_, j) => j !== i);
-
-                        // Execute protocol when all participants have joined.
-                        new Session(
-                            generateID(),
-                            wss,
-                            roleToSocket as RoleToSocket,
-                            cancellation,
-                            initialise
-                        );
-
-                        if (connectionContexts.length === 0) {
-                            connectionContexts.push(makeNewContext());
-                        }
+                    if (session.isNotWaitingForRoles()) {
+                        const newContext = new Session(generateID(), cancellation, initialise, removeSession)
+                        connectionContexts.push(newContext);
                     }
                     return;
                 }
             }
 
+            const initialMandatoryRoles = new Set([Role.Peers.FO1, Role.Peers.FO2, Role.Peers.SM1, Role.Peers.SM2]);
+            if (!initialMandatoryRoles.has(role)) {
+                return;
+            }
+
             // Role occupied in all existing connection contexts;
             // Create new connection context.
-            const context = makeNewContext();
-            const [waiting, roleToSocket, socketToRole] = context;
+            const context = new Session(generateID(), cancellation, initialise, removeSession)
+            const session = context;
 
             // Update role-WebSocket mapping.
-            roleToSocket[role] = socket;
-            socketToRole.set(socket, role);
-            waiting.delete(role);
+            session.addRole(role, socket);
+            session.stopWaitingFor(role);
 
             connectionContexts.push(context);
         }
@@ -147,41 +130,45 @@ export class Svr {
 class Session {
 
     private id: string;
-    private wss: WebSocket.Server;
-    private roleToSocket: RoleToSocket;
+    private roleToSocket: Map<Role.Peers, WebSocket>;
+    private socketToRole: Map<WebSocket, Role.Peers>;
     private cancellation: Cancellation.Handler<string>;
     private initialise: StateInitialiser<string>;
+    private removeSession: (s: Session) => void;
+
+    private waiting: Set<Role.Peers>;
 
     private activeRoles: Set<Role.Peers>;
     private messageQueue: RoleToMessageQueue;
     private handlerQueue: RoleToHandlerQueue;
+    private sendQueue: RoleToMessageQueue;
 
     private varMap: Map<string, any>;
     private refMap: Map<string, () => boolean>;
     private recExprMap: Map<string, [string, () => void]>;
 
     constructor(id: string,
-        wss: WebSocket.Server,
-        roleToSocket: RoleToSocket,
         cancellation: Cancellation.Handler<string>,
-        initialise: StateInitialiser<string>) {
+        initialise: StateInitialiser<string>,
+        removeSession: (s: Session) => void) {
         this.id = id;
-        this.wss = wss;
-        this.roleToSocket = roleToSocket;
+        this.roleToSocket = new Map<Role.Peers, WebSocket>();
+        this.socketToRole = new Map<WebSocket, Role.Peers>();
         this.cancellation = cancellation;
         this.initialise = initialise;
+        this.removeSession = removeSession;
 
         this.varMap = new Map<string, any>();
         this.refMap = new Map<string, () => boolean>(
             [
-                ["Svr>lose>ignore3>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
-                ["Svr>win>ignore4>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
-                ["Svr>lose>ignore5>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
                 ["Svr>win>ignore6>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
-                ["FO1>finishedPicking>ignore1>S3>Svr", () => (this.varMap.get('numPicks1') > 0)],
-                ["SM2>clue>clue2,numAgents2>S5>FO2", () => (this.varMap.get('numAgents2') >= 0 && this.varMap.get('numAgents2') <= this.varMap.get('numCodenames'))],
-                ["SM1>clue>clue,numAgents>S1>FO1", () => (this.varMap.get('numAgents') >= 0 && this.varMap.get('numAgents') <= this.varMap.get('numCodenames'))],
+                ["Svr>lose>ignore5>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
+                ["Svr>win>ignore4>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
+                ["Svr>lose>ignore3>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
                 ["FO2>finishedPicking>ignore2>S6>Svr", () => (this.varMap.get('numPicks2') > 0)],
+                ["FO1>finishedPicking>ignore1>S3>Svr", () => (this.varMap.get('numPicks1') > 0)],
+                ["SM1>clue>clue,numAgents>S1>FO1", () => (this.varMap.get('numAgents') >= 0 && this.varMap.get('numAgents') <= this.varMap.get('numCodenames'))],
+                ["SM2>clue>clue2,numAgents2>S5>FO2", () => (this.varMap.get('numAgents2') >= 0 && this.varMap.get('numAgents2') <= this.varMap.get('numCodenames'))],
 
 
 
@@ -190,16 +177,16 @@ class Session {
         );
         this.recExprMap = new Map<string, [string, () => void]>(
             [
-                ["Svr>givePoints>p14,p24>S20>FO2", ["numPicks2", () => {
-
-                    this.varMap.set("numPicks2", this.varMap.get('numPicks2') + 1);
-
-                }]],
                 ["Svr>givePoints>p18,p28>S39>FO1", ["numPicks1", () => {
 
                     this.varMap.set("numPicks1", this.varMap.get('numPicks1') + 1);
 
                     this.varMap.delete("numPicks2");
+                }]],
+                ["Svr>givePoints>p14,p24>S20>FO2", ["numPicks2", () => {
+
+                    this.varMap.set("numPicks2", this.varMap.get('numPicks2') + 1);
+
                 }]],
                 ["FO2>finishedPicking>>S11>SM1", ["numCodenames", () => {
 
@@ -211,8 +198,10 @@ class Session {
             ]
         );
 
+        this.waiting = new Set([Role.Peers.FO1, Role.Peers.FO2, Role.Peers.SM1, Role.Peers.SM2]);
+
         // Keep track of active participants in the session.
-        this.activeRoles = new Set([Role.Peers.FO1, Role.Peers.SM2, Role.Peers.SM1, Role.Peers.FO2]);
+        this.activeRoles = new Set();
 
         // Bind `this` instances to callbacks
         this.next = this.next.bind(this);
@@ -220,30 +209,63 @@ class Session {
         this.send = this.send.bind(this);
         this.registerMessageHandler = this.registerMessageHandler.bind(this);
 
-        // Bind event listeners to WebSockets
-        Object.values(Role.Peers).forEach(role => {
-            const socket = this.roleToSocket[role];
-
-            // Bind handlers for message receive and socket close.
-            socket.onmessage = this.receive(role).bind(this);
-            socket.onclose = this.close(role).bind(this);
-        });
-
         // Initialise queues for receiving.
         this.messageQueue = {
-            [Role.Peers.FO1]: [], [Role.Peers.SM2]: [], [Role.Peers.SM1]: [], [Role.Peers.FO2]: [],
+            [Role.Peers.FO2]: [], [Role.Peers.FO1]: [], [Role.Peers.SM1]: [], [Role.Peers.SM2]: [],
         };
 
         this.handlerQueue = {
-            [Role.Peers.FO1]: [], [Role.Peers.SM2]: [], [Role.Peers.SM1]: [], [Role.Peers.FO2]: [],
+            [Role.Peers.FO2]: [], [Role.Peers.FO1]: [], [Role.Peers.SM1]: [], [Role.Peers.SM2]: [],
         };
 
-        // Notify all roles for confirming the connection.
-        Object.values(this.roleToSocket).forEach(socket => {
-            socket.send(Message.serialise(Connect.Confirm));
-        });
+        this.sendQueue = {
+            [Role.Peers.FO2]: [], [Role.Peers.FO1]: [], [Role.Peers.SM1]: [], [Role.Peers.SM2]: [],
+        };
 
         this.next(initialise(this.id));
+    }
+
+    // =======================
+    // Session roles functions
+    // =======================
+
+    isNotWaitingForRoles() {
+        return this.waiting.size === 0;
+    }
+
+    isWaitingFor(role: Role.Peers) {
+        return this.waiting.has(role);
+    }
+
+    stopWaitingFor(role: Role.Peers) {
+        return this.waiting.delete(role);
+    }
+
+    startWaitingFor(role: Role.Peers) {
+        return this.waiting.add(role);
+    }
+
+    getRoleFromSocket(socket: WebSocket) {
+        return this.socketToRole.get(socket);
+    }
+
+    addRole(role: Role.Peers, socket: WebSocket) {
+        this.roleToSocket.set(role, socket);
+        this.socketToRole.set(socket, role);
+
+        socket.send(Message.serialise(Connect.Confirm));
+
+        this.activeRoles.add(role);
+
+        socket.onmessage = this.receive(role).bind(this);
+        socket.onclose = this.close(role).bind(this);
+
+        // Send all queued messages...
+        var queuedMessage = this.sendQueue[role].shift()
+        while (queuedMessage) {
+            this.sendMessage(role, queuedMessage);
+            queuedMessage = this.sendQueue[role].shift()
+        }
     }
 
     // ====================
@@ -255,7 +277,7 @@ class Session {
             this.varMap.set(k, v);
         }
         this.initRecExprs();
-        //console.log(this.varMap)
+        console.log(this.varMap)
     }
 
     initRecExprs() {
@@ -275,7 +297,7 @@ class Session {
     }
 
     updateRecExprs(id: string) {
-        //console.log("update")
+        console.log("update")
         if (this.recExprMap.has(id)) {
             const [recExprName, recExprUpdater] = this.recExprMap.get(id)!;
             recExprUpdater();
@@ -317,7 +339,11 @@ class Session {
     // ===============
 
     send(to: Role.Peers, label: string, payload: any, fromState: string, from: Role.All = Role.Self) {
-        const message = Message.serialise<Message.Channel>({ role: from, label, payload, fromState });
+        const message: Message.Channel = { role: from, label, payload, fromState };
+        this.sendMessage(to, message);
+    }
+
+    sendMessage(to: Role.Peers, message: Message.Channel) {
         const onError = (error?: Error) => {
             if (error !== undefined) {
                 // Only flag an error if the recipient is meant to be active,
@@ -327,14 +353,20 @@ class Session {
                 }
             }
         };
-        this.updateVarMap(payload)
-        const payloadKeys = Object.keys(payload).join(",");
-        const id = `${from}>${label}>${payloadKeys}>${fromState}>${to}`;
-        if (!this.checkRefinement(id)) {
-            this.cancel("Server-side: Refinement failed.... " + id)
+        const { role, label, payload, fromState } = message;
+        if (this.roleToSocket.has(to)) {
+            this.updateVarMap(payload)
+            const payloadKeys = Object.keys(payload).join(",");
+            const id = `${role}>${label}>${payloadKeys}>${fromState}>${to}`;
+            if (!this.checkRefinement(id)) {
+                this.cancel("Server-side: Refinement failed....")
+            } else {
+                this.updateRecExprs(id);
+                const messageStr = Message.serialise<Message.Channel>(message);
+                this.roleToSocket.get(to)?.send(messageStr, onError);
+            }
         } else {
-            this.updateRecExprs(id);
-            this.roleToSocket[to].send(message, onError);
+            this.sendQueue[to].push(message);
         }
     }
 
@@ -342,6 +374,10 @@ class Session {
         return ({ data: messageData }: WebSocketMessage) => {
             const { role, label, payload, fromState } = Message.deserialise<Message.Channel>(messageData);
             if (role !== Role.Self) {
+                const peer = role as Role.Peers
+                if (!this.activeRoles.has(peer)) {
+                    this.waiting.add(peer);
+                }
                 // Route message
                 this.send(role, label, payload, fromState, from);
             } else {
@@ -420,6 +456,9 @@ class Session {
     close(role: Role.Peers) {
         return ({ target: socket, code, reason }: WebSocket.CloseEvent) => {
             this.activeRoles.delete(role);
+            if (this.activeRoles.size === 0) {
+                this.removeSession(this);
+            }
             switch (code) {
                 case Cancellation.Receive.NORMAL: {
                     // Unsubscribe from socket events.

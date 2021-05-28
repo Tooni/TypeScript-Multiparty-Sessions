@@ -16,7 +16,7 @@ import {
 type StateInitialiser<SessionID> = (sessionID: SessionID) => State.S{{ endpoint.efsm.initial_state }};
 
 export type StateTransitionHandler = (state: State.Type) => void;
-export type SendStateHandler = (role: Role.Peers, label: string, payload: any) => void;
+export type SendStateHandler = (role: Role.Peers, label: string, payload: any, fromState: string) => void;
 export type MessageHandler = (payload: any) => void;
 export type ReceiveStateHandler = (from: Role.Peers, messageHandler: MessageHandler) => void;
 
@@ -25,7 +25,7 @@ export type ReceiveStateHandler = (from: Role.Peers, messageHandler: MessageHand
 // ===============
 
 type RoleToSocket = Role.PeersToMapped<WebSocket>;
-type RoleToMessageQueue = Role.PeersToMapped<any>;
+type RoleToMessageQueue = Role.PeersToMapped<any[]>;
 type RoleToHandlerQueue = Role.PeersToMapped<MessageHandler[]>;
 
 interface WebSocketMessage {
@@ -144,11 +144,15 @@ class Session {
   private messageQueue: RoleToMessageQueue;
   private handlerQueue: RoleToHandlerQueue;
   private sendQueue: RoleToMessageQueue;
+
+  private varMap: Map<string, any>;
+  private refMap: Map<string, () => boolean>;
+  private recExprMap: Map<string, [string, () => void]>;
   
   constructor(id: string,
-    cancellation: Cancellation.Handler<string>,
-    initialise: StateInitialiser<string>,
-    removeSession: (s: Session) => void)
+              cancellation: Cancellation.Handler<string>,
+              initialise: StateInitialiser<string>,
+              removeSession: (s: Session) => void)
   {
     this.id = id;
     this.roleToSocket = new Map<Role.Peers, WebSocket>();
@@ -156,6 +160,34 @@ class Session {
     this.cancellation = cancellation;
     this.initialise = initialise;
     this.removeSession = removeSession;
+
+    this.varMap = new Map<string, any>();
+    this.refMap = new Map<string, () => boolean>(
+      [ 
+{% for (ident, ref) in endpoint.refinements -%}
+        ["{{ ident }}", () => {{ ref }}],
+{% endfor -%}
+{%- for (name, init, variables, ref, typevar) in endpoint.rec_exprs -%}
+{%- if ref|length > 0 %}
+        ["recExpr:{{ name }}", () => {{ ref }}],
+{%- endif %}
+{% endfor -%}
+      ]
+    );
+    this.recExprMap = new Map<string, [string, () => void]> (
+      [
+{% for (ident, name, update, resets) in endpoint.rec_expr_updates -%}
+        ["{{ ident }}", ["{{ name }}", () => {{ '{' }}
+          {% if name != "" and update != "" %}
+          this.varMap.set("{{ name }}", {{ update }}); 
+          {% endif %}
+          {% for reset in resets -%}
+          this.varMap.delete("{{ reset }}");
+          {% endfor -%}
+        {{ '}' }}]],
+{% endfor -%}
+      ]
+    );
 
     this.waiting = new Set([{% for role in endpoint.mandatory_roles %}Role.Peers.{{ role ~ (',' if not loop.last else '') }}{% endfor %}]);
 
@@ -189,6 +221,10 @@ class Session {
 
     this.next(initialise(this.id));
   }
+
+  // =======================
+  // Session roles functions
+  // =======================
 
   isNotWaitingForRoles() {
       return this.waiting.size === 0;
@@ -229,6 +265,55 @@ class Session {
     }
   }
 
+  // ====================
+  // Refinement functions
+  // ====================
+
+  updateVarMap(payload: any) {
+    for (const [k, v] of Object.entries(payload)) {
+      this.varMap.set(k, v);
+    }
+    this.initRecExprs();
+    console.log(this.varMap)
+  }
+
+  initRecExprs() {
+    {% for (name, init, variables, ref, typevar) in endpoint.rec_exprs -%}
+    if (!this.varMap.has("{{ name }}"){{ variables }}) {
+      this.varMap.set("{{ name }}", {{ init }});
+      {%- if ref|length > 0 %}
+      if (!this.checkRefinement("recExpr:{{ name }}")) {
+        this.cancel("Refinement on initialisation rec expr failed!");
+      }
+      {%- endif %}
+    }
+    {% endfor -%}
+    // what to do when initialising one rec expr means another one should be initialised too??
+  }
+
+  updateRecExprs(id: string) {
+    console.log("update")
+    if (this.recExprMap.has(id)) {
+      const [recExprName, recExprUpdater] = this.recExprMap.get(id)!;
+      recExprUpdater();
+      if (recExprName === "") {
+        return;
+      }
+      const recExprId = `recExpr:${recExprName}`
+      if (!this.checkRefinement(recExprId)) {
+        this.cancel("When updating rec expr, refinement failed.")
+      }
+    }
+  }
+
+  checkRefinement(id: string) {
+    let refinement;
+    if (this.refMap.has(id)) {
+      refinement = this.refMap.get(id);
+    }
+    return refinement === undefined || refinement();
+  }
+
   // ===================
   // Transition function
   // ===================
@@ -248,53 +333,79 @@ class Session {
   // Channel methods
   // ===============
 
-  send(to: Role.Peers, label: string, payload: any, from: Role.All = Role.Self) {
-    const message = Message.serialise<Message.Channel>({ role: from, label, payload });
-    this.sendMessage(to, message);
+  send(to: Role.Peers, label: string, payload: any, fromState: string, from: Role.All = Role.Self) {
+      const message: Message.Channel = { role: from, label, payload, fromState };
+      this.sendMessage(to, message);
   }
 
-  sendMessage(to: Role.Peers, message: string) {
-    const onError = (error?: Error) => {
-      if (error !== undefined) {
-        // Only flag an error if the recipient is meant to be active,
-        // and the message cannot be sent.
-        if (this.activeRoles.has(to)) {
-          throw new Error(`Cannot send to role: ${to}`);
-        }
+  sendMessage(to: Role.Peers, message: Message.Channel) {
+      const onError = (error?: Error) => {
+          if (error !== undefined) {
+              // Only flag an error if the recipient is meant to be active,
+              // and the message cannot be sent.
+              if (this.activeRoles.has(to)) {
+                  throw new Error(`Cannot send to role: ${to}`);
+              }
+          }
+      };
+      const { role, label, payload, fromState } = message;
+      if (this.roleToSocket.has(to)) {
+          this.updateVarMap(payload)
+          const payloadKeys = Object.keys(payload).join(",");
+          const id = `${role}>${label}>${payloadKeys}>${fromState}>${to}`;
+          if (!this.checkRefinement(id)) {
+              this.cancel("Server-side: Refinement failed....")
+          } else {
+              this.updateRecExprs(id);
+              const messageStr = Message.serialise<Message.Channel>(message);
+              this.roleToSocket.get(to)?.send(messageStr, onError);
+          }
+      } else {
+          this.sendQueue[to].push(message);
       }
-    };
-    if (this.roleToSocket.has(to)) {
-      this.roleToSocket.get(to)?.send(message, onError);
-    } else {
-      this.sendQueue[to].push(message);
-    }
   }
 
   receive(from: Role.Peers) {
-    return ({ data }: WebSocketMessage) => {
-      const { role, label, payload } = Message.deserialise<Message.Channel>(data);
+    return ({ data: messageData }: WebSocketMessage) => {
+      const { role, label, payload, fromState } = Message.deserialise<Message.Channel>(messageData);
       if (role !== Role.Self) {
         const peer = role as Role.Peers
         if (!this.activeRoles.has(peer)) {
           this.waiting.add(peer);
         }
         // Route message
-        this.send(role, label, payload, from);
+        this.send(role, label, payload, fromState, from);
       } else {
+        const delayedUpdate = () => {
+          this.updateVarMap(payload);
+          const payloadKeys = Object.keys(payload).join(",");
+          const id = `${from}>${label}>${payloadKeys}>${fromState}>${role}`;
+          if (!this.checkRefinement(id)) {
+            this.cancel("Server-side: Refinement failed222....")
+          }
+          this.updateRecExprs(id);
+        };
         const handler = this.handlerQueue[from].shift();
         if (handler !== undefined) {
-          handler(data);
+          delayedUpdate();
+          handler(messageData);
         } else {
-          this.messageQueue[from].push(data);
+          this.messageQueue[from].push([messageData, delayedUpdate]);
         }
       }
     }
   }
 
   registerMessageHandler(from: Role.Peers, messageHandler: MessageHandler) {
-    const message = this.messageQueue[from].shift();
-    if (message !== undefined) {
-      messageHandler(message);
+    const data = this.messageQueue[from].shift();
+    let messageData: any;
+    let delayedUpdate: (() => void) | undefined;
+    if (data !== undefined) {
+      [messageData, delayedUpdate] = data;
+    }
+    if (messageData !== undefined && delayedUpdate !== undefined) {
+      delayedUpdate();
+      messageHandler(messageData);
     } else {
       this.handlerQueue[from].push(messageHandler);
     }
