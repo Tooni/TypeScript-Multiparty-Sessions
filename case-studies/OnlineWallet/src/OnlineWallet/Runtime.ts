@@ -48,7 +48,7 @@ namespace Connect {
     };
 };
 
-export class Svr {
+export class Wallet {
     constructor(wss: WebSocket.Server,
         cancellation: Cancellation.Handler<string>,
         initialise: StateInitialiser<string>,
@@ -85,7 +85,6 @@ export class Svr {
         const onSubscribe = (event: WebSocketMessage) => {
             const { data, target: socket } = event;
             const { connect: role } = Message.deserialise<Connect.Request>(data);
-
             for (let i = 0; i < connectionContexts.length; i++) {
                 const session = connectionContexts[i];
                 if (session.isWaitingFor(role)) {
@@ -100,7 +99,7 @@ export class Svr {
                 }
             }
 
-            const initialMandatoryRoles = new Set([Role.Peers.FO1, Role.Peers.FO2, Role.Peers.SM1, Role.Peers.SM2]);
+            const initialMandatoryRoles = new Set([Role.Peers.Customer]);
             if (!initialMandatoryRoles.has(role)) {
                 return;
             }
@@ -151,54 +150,37 @@ class Session {
         cancellation: Cancellation.Handler<string>,
         initialise: StateInitialiser<string>,
         removeSession: (s: Session) => void) {
+
         this.id = id;
         this.roleToSocket = new Map<Role.Peers, WebSocket>();
         this.socketToRole = new Map<WebSocket, Role.Peers>();
         this.cancellation = cancellation;
         this.initialise = initialise;
-        this.removeSession = removeSession;
+        this.removeSession = removeSession; // tODO: fix cancels!
 
         this.varMap = new Map<string, any>();
         this.refMap = new Map<string, () => boolean>(
             [
-                ["Svr>win>ignore6>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
-                ["Svr>lose>ignore5>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
-                ["Svr>win>ignore4>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
-                ["Svr>lose>ignore3>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
-                ["SM1>clue>clue,numAgents>S1>FO1", () => (this.varMap.get('numAgents') >= 0 && this.varMap.get('numAgents') <= this.varMap.get('numCodenames'))],
-                ["FO2>finishedPicking>ignore2>S6>Svr", () => (this.varMap.get('numPicks2') > 0)],
-                ["SM2>clue>clue2,numAgents2>S5>FO2", () => (this.varMap.get('numAgents2') >= 0 && this.varMap.get('numAgents2') <= this.varMap.get('numCodenames'))],
-                ["FO1>finishedPicking>ignore1>S3>Svr", () => (this.varMap.get('numPicks1') > 0)],
+                ["Wallet>login_denied>msg>S3>Customer", () => (this.varMap.get('try') === 3)],
+                ["Wallet>login_retry>msg>S3>Customer", () => (this.varMap.get('try') < 3)],
+                ["Vendor>request>bill>S3>Customer", () => (this.varMap.get('bill') > 0)],
+                ["Customer>login>account>S0>Wallet", () => (this.varMap.get('account') >= 100000 && this.varMap.get('account') < 1000000)],
+                ["Customer>pin>pin>S2>Wallet", () => (this.varMap.get('pin') >= 1000 && this.varMap.get('pin') < 10000)],
+                ["Customer>pay>payment>S8>Vendor", () => (this.varMap.get('payment') === this.varMap.get('bill'))],
 
-
-
-                ["recExpr:numCodenames", () => this.varMap.get('numCodenames') >= 0],
             ]
         );
         this.recExprMap = new Map<string, [string, () => void]>(
             [
-                ["Svr>givePoints>p18,p28>S39>FO1", ["numPicks1", () => {
+                ["Wallet>login_retry>msg>S3>Customer", ["try", () => {
 
-                    this.varMap.set("numPicks1", this.varMap.get('numPicks1') + 1);
+                    this.varMap.set("try", this.varMap.get('try') + 1);
 
-                    this.varMap.delete("numPicks2");
-                }]],
-                ["Svr>givePoints>p14,p24>S20>FO2", ["numPicks2", () => {
-
-                    this.varMap.set("numPicks2", this.varMap.get('numPicks2') + 1);
-
-                }]],
-                ["FO2>finishedPicking>>S11>SM1", ["numCodenames", () => {
-
-                    this.varMap.set("numCodenames", this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2'));
-
-                    this.varMap.delete("numPicks1");
-                    this.varMap.delete("numPicks2");
                 }]],
             ]
         );
 
-        this.waiting = new Set([Role.Peers.FO1, Role.Peers.FO2, Role.Peers.SM1, Role.Peers.SM2]);
+        this.waiting = new Set([Role.Peers.Customer]);
 
         // Keep track of active participants in the session.
         this.activeRoles = new Set();
@@ -211,15 +193,15 @@ class Session {
 
         // Initialise queues for receiving.
         this.messageQueue = {
-            [Role.Peers.SM1]: [], [Role.Peers.FO2]: [], [Role.Peers.SM2]: [], [Role.Peers.FO1]: [],
+            [Role.Peers.Vendor]: [], [Role.Peers.Customer]: [],
         };
 
         this.handlerQueue = {
-            [Role.Peers.SM1]: [], [Role.Peers.FO2]: [], [Role.Peers.SM2]: [], [Role.Peers.FO1]: [],
+            [Role.Peers.Vendor]: [], [Role.Peers.Customer]: [],
         };
 
         this.sendQueue = {
-            [Role.Peers.SM1]: [], [Role.Peers.FO2]: [], [Role.Peers.SM2]: [], [Role.Peers.FO1]: [],
+            [Role.Peers.Vendor]: [], [Role.Peers.Customer]: [],
         };
 
         this.next(initialise(this.id));
@@ -280,17 +262,8 @@ class Session {
     }
 
     initRecExprs() {
-        if (!this.varMap.has("numPicks2")) {
-            this.varMap.set("numPicks2", 0);
-        }
-        if (!this.varMap.has("numPicks1")) {
-            this.varMap.set("numPicks1", 0);
-        }
-        if (!this.varMap.has("numCodenames")) {
-            this.varMap.set("numCodenames", 25);
-            if (!this.checkRefinement("recExpr:numCodenames")) {
-                this.cancel(`The refinement on recursive expression numCodenames failed during initialisation.`);
-            }
+        if (!this.varMap.has("try")) {
+            this.varMap.set("try", 0);
         }
     }
 

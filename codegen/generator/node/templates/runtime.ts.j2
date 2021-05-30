@@ -417,7 +417,7 @@ class Session {
 
     // Emit cancellation to other roles.
     const message = Cancellation.toChannel(Role.Self, reason);
-    this.roleToSocket.forEach((socket, _) => {
+    this.roleToSocket.forEach((socket) => {
       socket.removeAllListeners();
       socket.close(Cancellation.Emit.LOGICAL_ERROR, JSON.stringify(message));
     });
