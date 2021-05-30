@@ -332,6 +332,9 @@ class Session {
 
   send(to: Role.Peers, label: string, payload: any, fromState: string, from: Role.All = Role.Self) {
       const message: Message.Channel = { role: from, label, payload, fromState };
+      if (!this.activeRoles.has(to)) {
+        this.waiting.add(to);
+      }
       this.sendMessage(to, message);
   }
 
@@ -366,10 +369,6 @@ class Session {
     return ({ data: messageData }: WebSocketMessage) => {
       const { role, label, payload, fromState } = Message.deserialise<Message.Channel>(messageData);
       if (role !== Role.Self) {
-        const peer = role as Role.Peers
-        if (!this.activeRoles.has(peer)) {
-          this.waiting.add(peer);
-        }
         // Route message
         this.send(role, label, payload, fromState, from);
       } else {
@@ -418,11 +417,10 @@ class Session {
 
     // Emit cancellation to other roles.
     const message = Cancellation.toChannel(Role.Self, reason);
-    Object.values(this.roleToSocket)
-      .forEach(socket => {
-        socket.removeAllListeners();
-        socket.close(Cancellation.Emit.LOGICAL_ERROR, JSON.stringify(message));
-      });
+    this.roleToSocket.forEach((socket, _) => {
+      socket.removeAllListeners();
+      socket.close(Cancellation.Emit.LOGICAL_ERROR, JSON.stringify(message));
+    });
 
     // Execute user-defined cancellation handler.
     this.cancellation(this.id, Role.Self, reason);
@@ -434,12 +432,12 @@ class Session {
 
     // Emit cancellation to other roles.
     const message = Cancellation.toChannel(cancelledRole, reason);
-    Object.entries(this.roleToSocket)
-      .filter(([role, _]) => role !== cancelledRole)
-      .forEach(([_, socket]) => {
+    this.roleToSocket.forEach((socket, role) => {
+      if (role !== cancelledRole) {
         socket.removeAllListeners();
         socket.close(Cancellation.Emit.LOGICAL_ERROR, JSON.stringify(message));
-      });
+      }
+    });
 
     // Execute user-defined cancellation handler.
     this.cancellation(this.id, cancelledRole, reason);
