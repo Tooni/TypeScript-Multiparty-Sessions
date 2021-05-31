@@ -22,8 +22,8 @@ export default class LoginAccount extends S0<ComponentState> {
                 id="account" 
                 type="number"
                 value={this.state.account}
-                InputProps={{ inputProps: { min: 100000 } }}
-                onChange={(ev: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => 
+                InputProps={{ inputProps: { min: 100000, max: 1000000 } }}
+                onChange={(ev) => 
                     this.setState({ account: Number(ev.target.value) })}>
             </TextField>
             <Submit><Button>Submit Account Number</Button></Submit>

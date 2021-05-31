@@ -22,7 +22,7 @@ export default class LoginPin extends S2<ComponentState> {
             <TextField 
                 id="pin" 
                 type="number"
-                InputProps={{ inputProps: { min: 1000 } }}
+                InputProps={{ inputProps: { min: 1000, max: 10000 } }}
                 value={this.state.pin}
                 onChange={(ev: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => 
                     this.setState({ pin: Number(ev.target.value) })}>

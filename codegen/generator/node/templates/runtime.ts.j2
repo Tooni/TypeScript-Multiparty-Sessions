@@ -24,7 +24,6 @@ export type ReceiveStateHandler = (from: Role.Peers, messageHandler: MessageHand
 // WebSocket Types
 // ===============
 
-type RoleToSocket = Role.PeersToMapped<WebSocket>;
 type RoleToMessageQueue = Role.PeersToMapped<any[]>;
 type RoleToHandlerQueue = Role.PeersToMapped<MessageHandler[]>;
 
