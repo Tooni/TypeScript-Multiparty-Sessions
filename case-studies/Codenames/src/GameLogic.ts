@@ -48,7 +48,7 @@ function initGame(gameId: string) {
     return {
         codenamesStr, 
         agentColoursStr
-    }
+    };
 }
 
 function makePick(gameId: string, team: Teams.Red | Teams.Blue, codename: string) {

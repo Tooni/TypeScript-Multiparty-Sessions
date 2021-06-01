@@ -49,7 +49,10 @@ export default class SendPickOrFinishedPickingSvrFO2 extends S3 {
         return <div style={{ marginBottom: "12px" }}>
             {/*<h2>S3: SendPickOrFinishedPickingSvrFO2</h2>*/}
             {this.context.madeAPick &&
-              <FinishedPickingSvr><Button ref={this.buttonRef} variant="contained">Finished Picking</Button></FinishedPickingSvr>}
+                <FinishedPickingSvr>
+                    <Button ref={this.buttonRef} variant="contained">
+                        Finished Picking
+                </Button></FinishedPickingSvr>}
         </div>
     }
 }

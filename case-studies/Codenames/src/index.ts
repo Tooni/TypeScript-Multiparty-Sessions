@@ -10,8 +10,7 @@ import express from "express";
 import path from "path";
 import http from "http";
 import { Session, Svr } from "./Codenames/Svr"
-import { Handler, State, Factory, Message } from './Codenames/Svr/EFSM';
-import { MaybePromise } from "./Codenames/Svr/Utility"
+import { Factory, Message } from './Codenames/Svr/EFSM';
 
 const app = express();
 
@@ -25,8 +24,6 @@ const wss = new WebSocket.Server({ server });
 
 const gameManager = (gameId: string) => {
     const { codenamesStr, agentColoursStr } = DB.initGame(gameId);
-    
-    // todo: once convinced game works, clean this up by removing the 'typeof Factory.SX' annotations
 
     const Loop1 = (Next: typeof Factory.S4) => Next({
         finishedPicking: Loop2,
