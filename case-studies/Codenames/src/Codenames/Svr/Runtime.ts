@@ -24,7 +24,6 @@ export type ReceiveStateHandler = (from: Role.Peers, messageHandler: MessageHand
 // WebSocket Types
 // ===============
 
-type RoleToSocket = Role.PeersToMapped<WebSocket>;
 type RoleToMessageQueue = Role.PeersToMapped<any[]>;
 type RoleToHandlerQueue = Role.PeersToMapped<MessageHandler[]>;
 
@@ -165,9 +164,9 @@ class Session {
                 ["Svr>lose>ignore5>S35>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') <= 17)],
                 ["Svr>win>ignore4>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
                 ["Svr>lose>ignore3>S16>FO1", () => (this.varMap.get('numCodenames') - this.varMap.get('numPicks1') - this.varMap.get('numPicks2') <= 18)],
-                ["SM1>clue>clue,numAgents>S1>FO1", () => (this.varMap.get('numAgents') >= 0 && this.varMap.get('numAgents') <= this.varMap.get('numCodenames'))],
+                ["SM1>clue>clue,numAgents>S1>FO1", () => (this.varMap.get('numAgents') > 0 && this.varMap.get('numAgents') <= this.varMap.get('numCodenames'))],
                 ["FO2>finishedPicking>ignore2>S6>Svr", () => (this.varMap.get('numPicks2') > 0)],
-                ["SM2>clue>clue2,numAgents2>S5>FO2", () => (this.varMap.get('numAgents2') >= 0 && this.varMap.get('numAgents2') <= this.varMap.get('numCodenames'))],
+                ["SM2>clue>clue2,numAgents2>S5>FO2", () => (this.varMap.get('numAgents2') > 0 && this.varMap.get('numAgents2') <= this.varMap.get('numCodenames'))],
                 ["FO1>finishedPicking>ignore1>S3>Svr", () => (this.varMap.get('numPicks1') > 0)],
 
 

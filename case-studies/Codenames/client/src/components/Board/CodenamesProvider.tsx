@@ -23,4 +23,6 @@ export const BoardContext = React.createContext({
     updateNumPicksAllowed: (n: number) => {},
     madeAPick: false,
     updateMadeAPick: (b: boolean) => {},
+    numCodenames: 25,
+    updateNumCodenames: (i: number) => {},
 });

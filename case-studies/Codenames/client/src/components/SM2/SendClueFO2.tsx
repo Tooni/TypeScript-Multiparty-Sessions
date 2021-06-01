@@ -1,7 +1,6 @@
 import React from 'react';
 import { TextField, Button, Box, Container } from '@material-ui/core';
 import S5 from '../../Codenames/SM2/S5';
-import { MaybePromise } from '../../Codenames/SM2/Types';
 import { BoardContext } from "../Board/CodenamesProvider";
 
 type ComponentState = {
@@ -19,6 +18,8 @@ export default class SendClueFO2 extends S5<ComponentState> {
 
     render() {
         const Clue = this.clue('onClick', ev => ({ clue2: this.state.pick, numAgents2: this.state.numAgents }));
+
+        const numCodenames = this.context.numCodenames;
 
         return <div>
             {/*<h2>S5: SendClueFO2</h2>*/}
@@ -41,7 +42,7 @@ export default class SendClueFO2 extends S5<ComponentState> {
                 variant="outlined"
                 label="#"
                 type="number"
-                InputProps={{ inputProps: { min: 1 } }}
+                InputProps={{ inputProps: { min: 1, max: numCodenames } }}
                 value={this.state.numAgents}
                 onChange={(ev: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => 
                     this.setState({ numAgents: Number(ev.target.value) })}>

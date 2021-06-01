@@ -12,6 +12,7 @@ export default class ReceiveRevealSvr extends S10 {
         board.set(currPick, Number(payload.compromisedAgents2));
         this.context.updateBoard(board);
         this.context.updatePick("");
+        this.context.updateNumCodenames(this.context.numCodenames - 1);
     }
 
     render() {

@@ -73,6 +73,7 @@ function App() {
     const [numPicksAllowed, setNumPicksAllowed] = React.useState<number>(0);
     const [madeAPick, setMadeAPick] = React.useState<boolean>(false);
     const [turnEnded, setEndTurn] = React.useState<boolean>(false);
+    const [numCodenames, setNumCodenames] = React.useState<number>(25);
 
     const classes = useStyles();
     
@@ -124,7 +125,9 @@ function App() {
                     numPicksAllowed: numPicksAllowed,
                     updateNumPicksAllowed: setNumPicksAllowed,
                     madeAPick: madeAPick,
-                    updateMadeAPick: setMadeAPick
+                    updateMadeAPick: setMadeAPick,
+                    numCodenames: numCodenames,
+                    updateNumCodenames: setNumCodenames
                 }}>
 
                     <AppBar position='sticky'>
@@ -162,21 +165,26 @@ function App() {
                     </div>
                     <BoardContext.Consumer>
                         {({ redPoints, bluePoints, modalIsOpen }) =>
-                        endpoint !== undefined && <div>
+                        endpoint !== undefined && <>
                             <Typography display="inline" variant="h4" color="secondary">{redPoints}</Typography> 
                             <Typography display="inline" variant="h4">&nbsp;&mdash;&nbsp;</Typography>
                             <Typography display="inline" variant="h4" color="primary">{bluePoints}</Typography>
                             <ResultsModal redPoints={redPoints} bluePoints={bluePoints} open={modalIsOpen}/>
-                        </div>}
+                        </>}
                     </BoardContext.Consumer>
                     {endpoint === Endpoint.FO1 &&
                         <FO1View />}
                     {endpoint === Endpoint.FO2 &&
                         <FO2View />}
-                    {endpoint === Endpoint.SM1 &&
-                        <SM1View />}
-                    {endpoint === Endpoint.SM2 &&
-                        <SM2View />}
+                    
+                    <BoardContext.Consumer>
+                        {({ numCodenames }) =>
+                            <>{endpoint === Endpoint.SM1 &&
+                            <SM1View />}
+                            {endpoint === Endpoint.SM2 &&
+                            <SM2View />}
+                            </>}
+                    </BoardContext.Consumer>
 
                     {(endpoint === Endpoint.FO1 || endpoint === Endpoint.FO2) &&
                     <BoardContext.Consumer>

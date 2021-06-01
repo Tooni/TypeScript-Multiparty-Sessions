@@ -1,0 +1,87 @@
+(*# CheckDirectedChoiceDisabled, RefinementTypes, ValidateRefinementProgress, ValidateRefinementSatisfiability #*)
+
+global protocol Codenames(role FO1, role FO2, role SM1, role SM2, role Svr) {
+  codeNames(codeNames1: string) from Svr to FO2;
+  codeAndAgentNames(codeNames2: string, agentColours1: string) from Svr to SM2;
+  codeNames(codeNames3: string) from Svr to FO1;
+  codeAndAgentNames(codeNames4: string, agentColours2: string) from Svr to SM1;
+  do Play(FO1, FO2, SM1, SM2, Svr);
+}
+
+aux global protocol Play(role FO1, role FO2, role SM1, role SM2, role Svr) {
+  rec Loop [numCodenames<FO1, FO2, Svr, SM1>: (numCodenames: int{numCodenames >= 0}) = 25] {
+    clue(clue: string, numAgents: int{numAgents > 0 && numAgents <= numCodenames}) from SM1 to FO1;
+    rec PickLoop1 [numPicks1<FO1, FO2, Svr, SM1, SM2>: int = 0] {
+      choice at FO1 {
+        finishedPicking(ignore1: unit{numPicks1 > 0}) from FO1 to Svr;
+        finishedPicking() from FO1 to FO2; 
+        finishedPicking() from FO1 to SM1;
+        finishedPicking() from FO1 to SM2; 
+        clue(clue2: string, numAgents2: int{numAgents2 > 0 && numAgents2 <= numCodenames}) from SM2 to FO2;
+        rec PickLoop2 [numPicks2<FO1, FO2, Svr, SM1, SM2>: int = 0] {
+          choice at FO2 {
+            finishedPicking(ignore2: unit{numPicks2 > 0}) from FO2 to Svr;
+            finishedPicking() from FO2 to FO1; 
+            finishedPicking() from FO2 to SM2; 
+            finishedPicking() from FO2 to SM1; 
+            continue Loop [numCodenames - numPicks1 - numPicks2];
+          } or {
+            pick(codeName1: string) from FO2 to FO1; 
+            pick(codeName2: string) from FO2 to SM2; 
+            pick(codeName3: string) from FO2 to SM1; 
+            pick(codeName4: string) from FO2 to Svr;
+            reveal(compromisedAgents1: int) from Svr to FO2;
+            reveal(compromisedAgents2: int) from Svr to SM2;
+            reveal(compromisedAgents3: int) from Svr to FO1;
+            reveal(compromisedAgents4: int) from Svr to SM1;
+            choice at Svr {
+              givePoints(p11: int, p21: int) from Svr to SM1;
+              givePoints(p12: int, p22: int) from Svr to FO1;
+              givePoints(p13: int, p23: int) from Svr to SM2;
+              givePoints(p14: int, p24: int) from Svr to FO2;
+              continue PickLoop2 [numPicks2 + 1];
+            } or {
+              // 25 - 8 (blues) = 17
+              // and then plus one because the last pick wont update 
+              lose(ignore3: unit{numCodenames - numPicks1 - numPicks2 <= 18}) from Svr to FO1;
+              lose() from Svr to SM1;
+              win() from Svr to FO2;
+              win() from Svr to SM2;
+            } or {
+              win(ignore4: unit{numCodenames - numPicks1 - numPicks2 <= 18}) from Svr to FO1;
+              win() from Svr to SM1;
+              lose() from Svr to FO2;
+              lose() from Svr to SM2;
+            }
+          }
+        }
+      } or {
+        pick(codeName5: string) from FO1 to FO2; 
+        pick(codeName6: string) from FO1 to SM1; 
+        pick(codeName7: string) from FO1 to SM2;
+        pick(codeName8: string) from FO1 to Svr;
+        reveal(compromisedAgents5: int) from Svr to FO2;
+        reveal(compromisedAgents6: int) from Svr to SM2;
+        reveal(compromisedAgents7: int) from Svr to FO1;
+        reveal(compromisedAgents8: int) from Svr to SM1;
+        choice at Svr {
+          givePoints(p15: int, p25: int) from Svr to SM2;
+          givePoints(p16: int, p26: int) from Svr to FO2;
+          givePoints(p17: int, p27: int) from Svr to SM1;
+          givePoints(p18: int, p28: int) from Svr to FO1;
+          continue PickLoop1 [numPicks1 + 1];
+        } or {
+          lose(ignore5: unit{numCodenames - numPicks1 <= 17}) from Svr to FO1; // 8 bystanders
+          lose() from Svr to SM1;
+          win() from Svr to FO2;
+          win() from Svr to SM2;
+        } or {
+          win(ignore6: unit{numCodenames - numPicks1 <= 17}) from Svr to FO1;
+          win() from Svr to SM1;
+          lose() from Svr to FO2;
+          lose() from Svr to SM2;
+        }
+      }
+    }
+  }
+}
