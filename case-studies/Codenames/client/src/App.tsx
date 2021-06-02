@@ -63,7 +63,7 @@ const useStyles = makeStyles((theme) => ({
 
 function App() {
     const [endpoint, setEndpoint] = React.useState<Endpoint>();
-    const [boardState, setBoardState] = React.useState<Map<string, Teams>>(new Map<string, Teams>());
+    const [boardState, setBoardState] = React.useState<Map<string, [Teams, boolean]>>(new Map<string, [Teams, boolean]>());
     const [clueState, setClue] = React.useState<string>("");
     const [pickerState, setPicker] = React.useState<(choice: string, child: JSX.Element) => JSX.Element>(() => (choice: string, child: JSX.Element) => child);
     const [pickState, setPick] = React.useState<string>("");

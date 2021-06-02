@@ -7,10 +7,10 @@ import Teams from "../Board/Teams";
 
 export default class ReceiveCodenamesSvr extends S0 {
     codeNames(payload: Payloads.codeNames): MaybePromise<void> {
-        const board = new Map<string, Teams>(this.context.boardState);
+        const board = new Map<string, [Teams, boolean]>(this.context.boardState);
         const codeNames = payload.codeNames1.split(",");
         for (const codeName of codeNames) {
-            board.set(codeName, Teams.Unknown);
+            board.set(codeName, [Teams.Unknown, false]);
         }
         this.context.updateBoard(board);
         this.context.updateClue("Waiting for Clue from Spymaster...");

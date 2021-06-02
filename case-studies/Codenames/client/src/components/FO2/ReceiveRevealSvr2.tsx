@@ -8,10 +8,8 @@ import Teams from "../Board/Teams";
 export default class ReceiveRevealSvr2 extends S23 {
     reveal(payload: Payloads.reveal): MaybePromise<void> {
         const currPick = this.context.pickState;
-        console.log('currPick2')
-        console.log(currPick)
-        const board = new Map<string, Teams>(this.context.boardState);
-        board.set(currPick, Number(payload.compromisedAgents5));
+        const board = new Map<string, [Teams, boolean]>(this.context.boardState);
+        board.set(currPick, [Number(payload.compromisedAgents5), false]);
         this.context.updateBoard(board);
         this.context.updatePick("");
     }

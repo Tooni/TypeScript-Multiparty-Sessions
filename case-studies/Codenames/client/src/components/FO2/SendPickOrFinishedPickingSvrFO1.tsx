@@ -30,7 +30,7 @@ export default class SendPickOrFinishedPickingSvrFO1 extends S6 {
                     this.context.updateMadeAPick(true);
                     return { codeName1: props.choice };
                 });
-                if (currentBoard.get(choice) === Teams.Unknown) {
+                if (currentBoard.get(choice)[0] === Teams.Unknown) {
                     return <Picker>{props.children}</Picker>
                 }
                 return <>{props.children}</>

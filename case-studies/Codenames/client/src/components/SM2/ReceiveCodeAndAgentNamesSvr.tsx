@@ -7,11 +7,11 @@ import Teams from "../Board/Teams";
 
 export default class ReceiveCodeAndAgentNamesSvr extends S0 {
     codeAndAgentNames(payload: Payloads.codeAndAgentNames): MaybePromise<void> {
-        const board = new Map<string, Teams>(this.context.boardState);
+        const board = new Map<string, [Teams, boolean]>(this.context.boardState);
         const codeNames = payload.codeNames2.split(",");
         const agentColours = payload.agentColours1.split(",");
         for (let i = 0; i < codeNames.length; i++) {
-            board.set(codeNames[i], Number(agentColours[i]));
+            board.set(codeNames[i], [Number(agentColours[i]), false]);
         }
         this.context.updateBoard(board);
     }
