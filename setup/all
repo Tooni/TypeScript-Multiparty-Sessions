@@ -1,6 +1,0 @@
-#!/usr/bin/bash
-
-cd ~/setup
-for script in $(find . -name "setup*"); do
-    $script
-done
