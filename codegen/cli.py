@@ -32,9 +32,9 @@ def parse_arguments(args: typing.List[str]) -> typing.Dict:
                         type=str, help='Output directory for generation')
 
     parser.add_argument('--prettify', dest='prettify', action='store_true',
-                        help="Used by default. States that tsfmt should be used to lint/reformat the files.")
+                        help="Used by default. States that tsfmt should be used to format the files.")
     parser.add_argument('--no-prettify', dest='prettify', action='store_false',
-                        help='States that tsfmt should not be used to lint/reformat the files.')
+                        help='States that tsfmt should not be used to format the files.')
     parser.set_defaults(prettify=True)
 
     parsed_args = parser.parse_args(args)
