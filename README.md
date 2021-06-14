@@ -53,34 +53,34 @@ We illustrate how to use our toolchain to generate TypeScript APIs:
 The following command reads as follows:
 
 ```bash
-$ python -m codegen ~/protocols/TravelAgency.scr TravelAgency S \
-	node -o ~/case-studies/TravelAgency/src
+$ python -m codegen protocols/TravelAgency.scr TravelAgency S \
+	node -o case-studies/TravelAgency/src
 ```
 
 1. Generate APIs for role `S` of the `TravelAgency`
-protocol specified in `~/protocols/TravelAgency.scr`;
+protocol specified in `protocols/TravelAgency.scr`;
 
 2. Role `S` is implemented as a `node` 
 (server-side) endpoint;
 
-3. Output the generated APIs under the path `~/case-studies/TravelAgency/src`
+3. Output the generated APIs under the path `case-studies/TravelAgency/src`
 
 #### __Browser-side endpoints__
 
 The following command reads as follows:
 
 ```bash
-$ python -m codegen ~/protocols/TravelAgency.scr TravelAgency A \
-	browser -s S -o ~/case-studies/TravelAgency/client/src
+$ python -m codegen protocols/TravelAgency.scr TravelAgency A \
+	browser -s S -o case-studies/TravelAgency/client/src
 ```
 
 1. Generate APIs for role `A` of the `TravelAgency`
-protocol specified in `~/protocols/TravelAgency.scr`;
+protocol specified in `protocols/TravelAgency.scr`;
 
 2. Role `A` is implemented as a `browser` endpoint,
 and assume role `S` to be the server;
 
-3. Output the generated APIs under the path `~/case-studies/TravelAgency/client/src`
+3. Output the generated APIs under the path `case-studies/TravelAgency/client/src`
 
 ### <a name="tests"></a> Running tests
 
