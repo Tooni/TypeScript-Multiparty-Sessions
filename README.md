@@ -25,16 +25,11 @@ A mono-repo for a session type API code generation toolchain for modern web prog
 
 ### <a name="layout"></a> Repository Layout
 
-- `nuscr` contains [𝝼Scr](https://github.com/tooni/nuscr),
-  for handling multiparty protocol descriptions, a dependency of our toolchain.
-- `codegen` contains the source code of our code generator, written in Python, which generates
-  TypeScript code for implementing the provided multiparty protocol.
-- `protocols` contains various Scribble protocol descriptions, including those used in the case
-  studies.
-- `case-studies` contains 5 case studies of implementing interactive web applications with our
-  toolchain, namely _Noughts and Crosses_, _Travel Agency_, _Battleships_, _Online Wallet_, _Codenames_.
-- `web-sandbox` contains configuration files for the web development, e.g. TypeScript configurations
-  and NPM `package.json` files.
+- `nuscr` contains [𝝼Scr](https://github.com/tooni/nuscr), for handling multiparty protocol descriptions, a dependency of our toolchain.
+- `codegen` contains the source code of our code generator, written in Python, which generates TypeScript code for implementing the provided multiparty protocol.
+- `protocols` contains various Scribble protocol descriptions, including those used in the case studies.
+- `case-studies` contains 5 case studies of implementing interactive web applications with our toolchain, namely _Noughts and Crosses_, _Travel Agency_, _Battleships_, _Online Wallet_, _Codenames_.
+- `web-sandbox` contains configuration files for the web development, e.g. TypeScript configurations and NPM `package.json` files.
 
 ## <a name="user-guide"></a> 2️⃣ User guide
 
@@ -57,11 +52,9 @@ $ python -m codegen protocols/TravelAgency.scr TravelAgency S \
 	node -o case-studies/TravelAgency/src
 ```
 
-1. Generate APIs for role `S` of the `TravelAgency`
-protocol specified in `protocols/TravelAgency.scr`;
+1. Generate APIs for role `S` of the `TravelAgency` protocol specified in `protocols/TravelAgency.scr`;
 
-2. Role `S` is implemented as a `node` 
-(server-side) endpoint;
+2. Role `S` is implemented as a `node` (server-side) endpoint;
 
 3. Output the generated APIs under the path `case-studies/TravelAgency/src`
 
@@ -74,11 +67,9 @@ $ python -m codegen protocols/TravelAgency.scr TravelAgency A \
 	browser -s S -o case-studies/TravelAgency/client/src
 ```
 
-1. Generate APIs for role `A` of the `TravelAgency`
-protocol specified in `protocols/TravelAgency.scr`;
+1. Generate APIs for role `A` of the `TravelAgency` protocol specified in `protocols/TravelAgency.scr`;
 
-2. Role `A` is implemented as a `browser` endpoint,
-and assume role `S` to be the server;
+2. Role `A` is implemented as a `browser` endpoint, and assume role `S` to be the server;
 
 3. Output the generated APIs under the path `case-studies/TravelAgency/client/src`
 
@@ -101,19 +92,14 @@ The end-to-end tests verify that
 * The toolchain correctly generates TypeScript APIs, and,
 * The generated APIs can be type-checked by the TypeScript Compiler successfully.
 
-The protocol specification files, describing the multiparty communication, are
-located in the `protocols` folder.
-The generated APIs are saved under `~/web-sandbox` (which is a
-sandbox environment set up for the TypeScript Compiler) and are deleted when the test
-finishes.
+The protocol specification files, describing the multiparty communication, are located in the `protocols` folder.
+The generated APIs are saved under `web-sandbox` (which is a sandbox environment set up for the TypeScript Compiler) and are deleted when the test finishes.
 
 ### <a name="case-studies"></a> Running case studies
 
-We include five case studies of realistic
-web applications implemented using the generated APIs.
+We include five case studies of realistic web applications implemented using the generated APIs.
 
-For example,
-to generate the APIs for the case study `OnlineWallet`:
+For example, to generate the APIs for the case study `OnlineWallet`:
 
 ```bash
 $ cd case-studies/OnlineWallet
